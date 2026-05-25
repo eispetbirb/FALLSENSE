@@ -1,0 +1,157 @@
+/* ── AI Fall Alert Card ────────────────────────────────────────────────────── */
+
+.fall-alert-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.fall-alert-card.triggered {
+  border-color: rgba(217, 79, 79, 0.6);
+  box-shadow: 0 0 0 3px rgba(217, 79, 79, 0.08);
+  animation: fall-card-pulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes fall-card-pulse {
+  from { box-shadow: 0 0 0 3px rgba(217,79,79,0.08); }
+  to   { box-shadow: 0 0 0 6px rgba(217,79,79,0.14); }
+}
+
+.fall-alert-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.fall-alert-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.fall-alert-sub   { font-size: 12px; color: var(--muted); margin-top: 1px; }
+
+.fall-alert-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: rgba(91,175,180,0.1);
+  color: var(--teal-dark);
+  transition: background 0.3s, color 0.3s;
+}
+
+.fall-alert-pill.active {
+  background: rgba(217,79,79,0.12);
+  color: var(--red);
+}
+
+/* No-event idle state */
+.fall-alert-idle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 12px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  border: 1px dashed var(--border-dark);
+  text-align: center;
+}
+
+.fall-alert-idle svg {
+  width: 28px;
+  height: 28px;
+  stroke: var(--teal-light);
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.6;
+}
+
+.fall-alert-idle-text {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Active fall event banner */
+.fall-alert-banner {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(217,79,79,0.08);
+  border: 1px solid rgba(217,79,79,0.25);
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.fall-alert-banner.show { display: flex; }
+
+.fall-alert-banner-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.fall-alert-banner-body { flex: 1; min-width: 0; }
+
+.fall-alert-banner-msg {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--red);
+}
+
+.fall-alert-banner-time {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* Event log list */
+.fall-event-log {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.fall-event-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: rgba(217,79,79,0.05);
+  border: 1px solid rgba(217,79,79,0.15);
+  border-radius: 8px;
+  animation: slidein-left 0.25s ease;
+}
+
+@keyframes slidein-left {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.fall-event-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  flex-shrink: 0;
+}
+
+.fall-event-text {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--red);
+}
+
+.fall-event-time {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}

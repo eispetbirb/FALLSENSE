@@ -435,8 +435,7 @@ window.onAIFrame = function (data) {
 };
 
 window.onAIFallAlert = function (data) {
-  // Flash the existing stream-wrap border red using a temporary CSS class.
-  // The class is removed after 5 s so the design returns to normal.
+  // ── 1. Flash stream-wrap border ───────────────────────────────────────────
   const streamWrap = document.querySelector(".stream-wrap");
   if (streamWrap) {
     streamWrap.classList.add("ai-fall-flash");
@@ -447,21 +446,56 @@ window.onAIFallAlert = function (data) {
     );
   }
 
-  // Update the status badge to "fall detected"
+  // ── 2. Update status badge ────────────────────────────────────────────────
   updateStreamDisplay(
     document.getElementById("streamUrlDisplay")?.textContent || "",
     "fall detected",
   );
 
-  // Update the Camera Health pill to match severity
-  const healthPill = document.getElementById("cameraHealthStatus");
-  if (healthPill) {
-    healthPill.textContent = "fall detected";
-    healthPill.className = "health-pill offline";
+  // ── 3. Drive the Fall Alert card ──────────────────────────────────────────
+  const card    = document.getElementById("fallAlertCard");
+  const banner  = document.getElementById("fallAlertBanner");
+  const bannerTime = document.getElementById("fallAlertBannerTime");
+  const pill    = document.getElementById("fallAlertPill");
+  const idle    = document.getElementById("fallAlertIdle");
+  const log     = document.getElementById("fallEventLog");
+  const ts      = data.timestamp || new Date().toLocaleTimeString();
+
+  // Card pulse
+  if (card) {
+    card.classList.add("triggered");
+    setTimeout(() => card.classList.remove("triggered"), 5000);
+  }
+
+  // Banner flash (auto-hides after 5 s)
+  if (banner) {
+    banner.classList.add("show");
+    if (bannerTime) bannerTime.textContent = ts;
+    setTimeout(() => banner.classList.remove("show"), 5000);
+  }
+
+  // Pill
+  if (pill) {
+    pill.textContent = "alert";
+    pill.classList.add("active");
     setTimeout(() => {
-      healthPill.textContent = "online";
-      healthPill.className = "health-pill online";
+      pill.textContent = "monitoring";
+      pill.classList.remove("active");
     }, 5000);
+  }
+
+  // Hide idle placeholder, show log
+  if (idle) idle.style.display = "none";
+  if (log) {
+    log.style.display = "flex";
+    const item = document.createElement("div");
+    item.className = "fall-event-item";
+    item.innerHTML = `
+      <div class="fall-event-dot"></div>
+      <div class="fall-event-text">Fall detected</div>
+      <div class="fall-event-time">${ts}</div>
+    `;
+    log.prepend(item);
   }
 
   console.warn("[AI] Fall alert:", data);
