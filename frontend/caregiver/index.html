@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FallSense – Caregiver Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:wght@700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/dashboard.css" />
+  </head>
+  <body>
+    <header class="top-bar">
+      <a class="navbar-brand" href="index.html">
+        <img
+          class="brand-logo"
+          src="assets/logo.png"
+          alt="FallSense – Elderly Monitor"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+        />
+        <span class="brand-text" style="display: none">FallSense</span>
+      </a>
+      <div class="top-bar-actions">
+        <button
+          type="button"
+          class="btn-nav-menu"
+          id="navMenuOpen"
+          aria-expanded="false"
+          aria-controls="navModal"
+        >
+          <svg viewBox="0 0 24 24">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+          Menu
+        </button>
+      </div>
+    </header>
+
+    <div
+      class="modal-overlay"
+      id="navModal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="navModalTitle"
+    >
+      <div class="modal-box nav-modal-box">
+        <div class="modal-header">
+          <span class="modal-title" id="navModalTitle">Navigation</span>
+          <button
+            type="button"
+            class="modal-close"
+            id="navModalClose"
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+        </div>
+
+        <ul class="nav-links">
+          <li>
+            <a href="index.html" class="active">
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+              Dashboard
+            </a>
+          </li>
+          <li>
+            <a href="alerts.html">
+              <svg viewBox="0 0 24 24">
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 01-3.46 0" />
+              </svg>
+              Alerts
+            </a>
+          </li>
+          <li>
+            <a href="monitoring.html">
+              <svg viewBox="0 0 24 24">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Monitoring
+            </a>
+          </li>
+          <li>
+            <a href="reports.html">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              Reports
+            </a>
+          </li>
+        </ul>
+
+        <div class="nav-modal-divider"></div>
+
+        <div class="nav-modal-footer">
+          <button type="button" class="btn-logout" data-action="logout">
+            <svg viewBox="0 0 24 24">
+              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            Logout
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <main>
+      <div class="hero-banner">
+        <div class="hero-inner">
+          <div class="hero-text">
+            <div class="eyebrow">
+              <span></span> Real-time caregiver operations
+            </div>
+            <h1>
+              Monitor patients, respond to alerts,<br />
+              and verify incidents in one workspace.
+            </h1>
+            <p>
+              Live patient cards, quick actions, medication tracking, and
+              realtime alerts are synchronized through Flask, JWT, Socket.IO,
+              and PostgreSQL.
+            </p>
+          </div>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <div class="hero-stat-number" id="heroStatPatients">0</div>
+              <div class="hero-stat-label">Patients</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-number" id="heroStatAlerts">0</div>
+              <div class="hero-stat-label">Active Alerts</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-number" id="heroStatMeds">0</div>
+              <div class="hero-stat-label">Meds Due</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-icon teal">
+            <svg viewBox="0 0 24 24">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 00-3-3.87" />
+              <path d="M16 3.13a4 4 0 010 7.75" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="statPatients">0</div>
+            <div class="stat-label">Active Patients</div>
+          </div>
+          <span class="stat-trend neu" id="statPatientsTrend">Max 3</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">
+            <svg viewBox="0 0 24 24">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 01-3.46 0" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="statAlerts">0</div>
+            <div class="stat-label">Open Alerts</div>
+          </div>
+          <span class="stat-trend down" id="statAlertsTrend">—</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="statMeds">0</div>
+            <div class="stat-label">Meds Due Today</div>
+          </div>
+          <span class="stat-trend neu" id="statMedsTrend">—</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <svg viewBox="0 0 24 24">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="statFalls">0</div>
+            <div class="stat-label">Falls Detected</div>
+          </div>
+          <span class="stat-trend up" id="statFallsTrend">Live</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Patient Status</div>
+            <div class="card-sub">Live patient cards — updated via Socket.IO</div>
+          </div>
+          <button type="button" class="btn-link" id="addPatientButton">
+            + Add Patient
+          </button>
+        </div>
+        <div class="patient-grid" id="patientStatusGrid"></div>
+      </div>
+
+      <div class="main-grid">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Quick Actions</div>
+              <div class="card-sub">
+                Use the controls below to react quickly during an incident.
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn-link"
+              data-quick-action="refresh"
+            >
+              Refresh state
+            </button>
+          </div>
+
+          <div class="actions-grid">
+            <button
+              type="button"
+              class="action-btn primary"
+              data-quick-action="monitor"
+            >
+              <svg viewBox="0 0 24 24">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              Start emergency monitoring
+            </button>
+            <button type="button" class="action-btn" id="addPatientBtn2">
+              <svg viewBox="0 0 24 24">
+                <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <line x1="20" y1="8" x2="20" y2="14" />
+                <line x1="23" y1="11" x2="17" y2="11" />
+              </svg>
+              Add patient
+            </button>
+            <button type="button" class="action-btn" data-quick-action="call">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8 19.79 19.79 0 0118 1.18a2 2 0 012 1.72 12.84 12.84 0 01.7 2.81 2 2 0 01-.45 1.67L19.48 8.9A16 16 0 0015.1 4.52L13.39 5.3"
+                />
+              </svg>
+              Call patient placeholder
+            </button>
+            <button
+              type="button"
+              class="action-btn danger"
+              data-quick-action="refresh"
+            >
+              <svg viewBox="0 0 24 24">
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path
+                  d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"
+                />
+              </svg>
+              Refresh monitoring state
+            </button>
+          </div>
+
+          <div class="sub-grid">
+            <div class="sub-card">
+              <div class="sub-card-header">
+                <div class="sub-card-title">Medication Tracking</div>
+                <span class="pill teal">Schedules</span>
+              </div>
+              <div class="med-list" id="medicationList"></div>
+            </div>
+
+            <div class="sub-card">
+              <div class="sub-card-header">
+                <div class="sub-card-title">Camera Health</div>
+                <span class="pill red" id="cameraHealthStatus">offline</span>
+              </div>
+              <div class="camera-status">
+                <div class="camera-indicator" id="cameraIndicator"></div>
+                <div class="camera-label">
+                  Stream status:
+                  <strong id="cameraStreamLabel">Disconnected</strong>
+                </div>
+              </div>
+              <div class="camera-meta">
+                Reconnect attempts:
+                <span id="cameraReconnectCount">0</span>
+              </div>
+              <div class="camera-hint">
+                Stream status is visible in the monitoring page for fall
+                verification. Check network or device settings if offline.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Recent Alerts</div>
+              <div class="card-sub">Live alert feed</div>
+            </div>
+            <a class="btn-link" href="alerts.html">Open alerts →</a>
+          </div>
+          <div class="alerts-list" id="alertsFeed"></div>
+        </div>
+      </div>
+    </main>
+
+    <div class="modal-overlay" id="quickActionModal" aria-hidden="true">
+      <div class="modal-box">
+        <div class="modal-header">
+          <div class="modal-title">Confirm Action</div>
+          <button
+            type="button"
+            class="modal-close"
+            data-modal-close="quickActionModal"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body-text" id="quickActionModalBody">
+          Confirm this action?
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn-cancel"
+            data-modal-close="quickActionModal"
+          >
+            Cancel
+          </button>
+          <button type="button" class="btn-primary" id="quickActionConfirmButton">
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="addPatientModal" aria-hidden="true">
+      <div class="modal-box">
+        <div class="modal-header">
+          <div class="modal-title">Add Patient</div>
+          <button
+            type="button"
+            class="modal-close"
+            data-modal-close="addPatientModal"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <form id="addPatientForm">
+          <div class="modal-field">
+            <label class="modal-label" for="patientNameInput">Patient Name</label>
+            <input
+              class="modal-input"
+              id="patientNameInput"
+              type="text"
+              placeholder="Enter patient name"
+              required
+            />
+          </div>
+          <div class="modal-field">
+            <label class="modal-label" for="patientRoomInput">Room Label</label>
+            <input
+              class="modal-input"
+              id="patientRoomInput"
+              type="text"
+              placeholder="Room 101"
+            />
+          </div>
+          <div class="modal-hint">Caregiver can add up to 3 patients only.</div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn-cancel"
+              data-modal-close="addPatientModal"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn-primary" id="addPatientSubmitButton">
+              Save patient
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      window.BACKEND_URL = "http://localhost:5000";
+    </script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/socket.js"></script>
+    <script src="assets/js/dashboard.js"></script>
+  </body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FallSense – Sign In</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:wght@700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/auth.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="left-panel">
+        <img
+          class="bg-img"
+          src="assets/bg2.png"
+          alt="Caregiver assisting elderly patient"
+        />
+
+        <div class="brand-overlay">
+          <div class="logo-fallback">
+            <img
+              class="logo-img"
+              src="assets/logo2.png"
+              alt="FallSense Logo"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <div
+              style="display:none; align-items:center; gap:8px; background:rgba(255,255,255,0.92); border-radius:12px; padding:8px 14px;"
+            >
+              <div class="logo-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="7" r="3.5" />
+                  <path
+                    d="M5 20c0-3.866 3.134-7 7-7s7 3.134 7 7"
+                    stroke="white"
+                    stroke-width="2"
+                    fill="none"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
+              <div class="logo-text-wrap">
+                <span class="logo-name">FallSense</span>
+                <span class="logo-sub">Elderly Monitor</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="card">
+          <h1 class="card-title">SIGN IN</h1>
+          <p class="card-subtitle">
+            Access patient monitoring, alert, and incidents reporting
+          </p>
+
+          <div id="loginMessage" class="d-none" role="alert"></div>
+
+          <form id="caregiverLoginForm" novalidate>
+            <div class="field">
+              <label for="email">Email<span class="req">*</span></label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                placeholder="caregiver@example.com"
+                autocomplete="email"
+                required
+              />
+            </div>
+
+            <div class="field">
+              <label for="password">Password<span class="req">*</span></label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="••••••••••••"
+                autocomplete="current-password"
+                required
+              />
+            </div>
+
+            <button class="btn-signin" type="submit">Sign In</button>
+          </form>
+
+          <p class="register-row">
+            Don't have an Account?
+            <a href="register.html">Register</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.BACKEND_URL = "http://localhost:5000";
+    </script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+  </body>
+</html>

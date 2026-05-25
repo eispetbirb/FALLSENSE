@@ -1,0 +1,162 @@
+:root {
+  --caregiver-bg: #07131f;
+  --caregiver-panel: rgba(9, 19, 31, 0.86);
+  --caregiver-panel-2: rgba(16, 31, 49, 0.9);
+  --caregiver-border: rgba(148, 163, 184, 0.22);
+  --caregiver-accent: #16c7b8;
+  --caregiver-accent-2: #66e3ff;
+  --caregiver-warning: #f7b955;
+  --caregiver-danger: #ff6b6b;
+  --caregiver-text: #e5eef7;
+  --caregiver-muted: #8fa3b8;
+}
+
+body.caregiver-shell {
+  min-height: 100vh;
+  color: var(--caregiver-text);
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(22, 199, 184, 0.16),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at top right,
+      rgba(102, 227, 255, 0.12),
+      transparent 25%
+    ),
+    linear-gradient(180deg, #09131d 0%, #050b12 100%);
+}
+
+.caregiver-navbar,
+.caregiver-card,
+.caregiver-surface {
+  background: var(--caregiver-panel);
+  border: 1px solid var(--caregiver-border);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+
+.caregiver-navbar .nav-link {
+  color: var(--caregiver-muted);
+}
+
+.caregiver-navbar .nav-link.active,
+.caregiver-navbar .nav-link:hover {
+  color: white;
+}
+
+.caregiver-hero {
+  background: linear-gradient(
+    135deg,
+    rgba(22, 199, 184, 0.14),
+    rgba(102, 227, 255, 0.08)
+  );
+  border: 1px solid var(--caregiver-border);
+}
+
+.caregiver-stat {
+  min-height: 132px;
+}
+
+.caregiver-stat .stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.caregiver-stat .stat-label,
+.caregiver-muted {
+  color: var(--caregiver-muted);
+}
+
+.caregiver-badge-soft {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.caregiver-table thead th {
+  color: #d4e2f3;
+  border-color: var(--caregiver-border);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.caregiver-table td,
+.caregiver-table th {
+  border-color: rgba(148, 163, 184, 0.12);
+}
+
+.caregiver-stream-frame {
+  width: 100%;
+  min-height: 420px;
+  border: 0;
+  border-radius: 1rem;
+  background: #02070c;
+  object-fit: contain;
+  display: block;
+}
+
+.caregiver-empty {
+  color: var(--caregiver-muted);
+  border: 1px dashed rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.toast-container {
+  z-index: 1080;
+}
+
+.btn-caregiver {
+  background: linear-gradient(
+    135deg,
+    var(--caregiver-accent),
+    var(--caregiver-accent-2)
+  );
+  border: 0;
+  color: #04202a;
+  font-weight: 700;
+}
+
+.btn-caregiver:hover {
+  color: #02141b;
+  opacity: 0.95;
+}
+
+.form-control,
+.form-select {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(148, 163, 184, 0.18);
+  color: var(--caregiver-text);
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--caregiver-text);
+  border-color: var(--caregiver-accent);
+  box-shadow: 0 0 0 0.15rem rgba(22, 199, 184, 0.16);
+}
+
+.login-card {
+  width: min(440px, calc(100vw - 2rem));
+  background: rgba(7, 19, 31, 0.92);
+  border: 1px solid var(--caregiver-border);
+  backdrop-filter: blur(16px);
+}
+
+.fade-in-up {
+  animation: fadeInUp 320ms ease-out both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

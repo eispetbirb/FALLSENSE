@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FallSense – Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:wght@700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/admin-dashboard.css" />
+  </head>
+  <body>
+    <nav class="navbar">
+      <a class="navbar-brand" href="index.html">
+        <img
+          class="brand-logo"
+          src="../caregiver/assets/logo.png"
+          alt="FallSense – Elderly Monitor"
+        />
+      </a>
+
+      <div class="nav-center">
+        <div class="nav-chip">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          SOC Dashboard
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <div class="admin-badge">
+          <div class="admin-badge-dot"></div>
+          Administrator
+        </div>
+        <div class="nav-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
+          </svg>
+          <span class="badge-dot"></span>
+        </div>
+        <button type="button" class="btn-logout" id="adminLogoutButton">
+          <svg viewBox="0 0 24 24">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          Logout
+        </button>
+      </div>
+    </nav>
+
+    <main>
+      <div class="hero-banner">
+        <div class="hero-inner">
+          <div class="hero-left">
+            <div class="eyebrow"><span></span> Security Operations Center</div>
+            <h1>Welcome back, Admin</h1>
+            <p>System health, user management, alerts, and audit logs in one view.</p>
+          </div>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <div class="hero-stat-number" id="totalUsers">0</div>
+              <div class="hero-stat-label">Users</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-number hero-stat-alerts" id="totalAlerts">0</div>
+              <div class="hero-stat-label">Alerts</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-number hero-stat-failed" id="failedLogins">0</div>
+              <div class="hero-stat-label">Failed Logins</div>
+            </div>
+            <div class="hero-stat">
+              <div class="hero-stat-number hero-stat-locked" id="lockedUsers">0</div>
+              <div class="hero-stat-label">Locked</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-icon blue">
+            <svg viewBox="0 0 24 24">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 00-3-3.87" />
+              <path d="M16 3.13a4 4 0 010 7.75" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="sc-users">0</div>
+            <div class="stat-label">Total Users</div>
+          </div>
+          <span class="stat-trend neu">Active</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon red">
+            <svg viewBox="0 0 24 24">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 01-3.46 0" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="sc-alerts">0</div>
+            <div class="stat-label">Total Alerts</div>
+          </div>
+          <span class="stat-trend down">↑ 3 today</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon amber">
+            <svg viewBox="0 0 24 24">
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0110 0v4" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="sc-failed">0</div>
+            <div class="stat-label">Failed Logins</div>
+          </div>
+          <span class="stat-trend down">↑ 2 new</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="sc-locked">0</div>
+            <div class="stat-label">Locked Users</div>
+          </div>
+          <span class="stat-trend up">Secure</span>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Alert Severity</div>
+              <div class="card-sub">Distribution by severity level</div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="alertChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Activity Types</div>
+              <div class="card-sub">Breakdown of security events</div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="securityChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="realtime-row">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Live Alerts</div>
+              <div class="card-sub">Real-time security events</div>
+            </div>
+            <span class="sev-pill critical">● Live</span>
+          </div>
+          <div class="feed-list" id="alerts"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Activity Logs</div>
+              <div class="card-sub">Recent system operations</div>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" id="refreshActivitiesButton">
+              <svg viewBox="0 0 24 24">
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+              </svg>
+              Refresh
+            </button>
+          </div>
+          <div class="feed-list" id="activities"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">User Management</div>
+            <div class="card-sub">
+              Create, update, lock, and remove caregiver and patient accounts
+            </div>
+          </div>
+        </div>
+
+        <form id="userForm">
+          <input type="hidden" id="userId" />
+          <div class="user-form-row">
+            <div>
+              <label class="form-label" for="userFullname">Full Name</label>
+              <input
+                id="userFullname"
+                class="form-input"
+                placeholder="Full name"
+                required
+              />
+            </div>
+            <div>
+              <label class="form-label" for="userEmail">Email</label>
+              <input
+                id="userEmail"
+                type="email"
+                class="form-input"
+                placeholder="Email address"
+                required
+              />
+            </div>
+            <div>
+              <label class="form-label" for="userPassword">Password</label>
+              <input
+                id="userPassword"
+                type="password"
+                class="form-input"
+                placeholder="Leave blank to keep"
+              />
+            </div>
+            <div>
+              <label class="form-label" for="userRole">Role</label>
+              <select id="userRole" class="form-select">
+                <option value="admin">Admin</option>
+                <option value="caregiver" selected>Caregiver</option>
+                <option value="patient">Patient</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label">&nbsp;</label>
+              <button class="btn btn-teal" type="submit" id="userSaveButton" style="width: 100%">
+                <svg viewBox="0 0 24 24">
+                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                Save User
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th style="text-align: right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="bottom-row">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">System Settings</div>
+              <div class="card-sub">Configure thresholds, sensitivity, and modules</div>
+            </div>
+          </div>
+          <form id="systemConfigForm" class="settings-grid">
+            <div class="settings-field">
+              <label class="form-label" for="failedLoginThreshold"
+                >Failed Login Threshold</label
+              >
+              <input
+                id="failedLoginThreshold"
+                type="number"
+                min="1"
+                class="form-input"
+                placeholder="e.g. 5"
+              />
+            </div>
+            <div class="settings-field">
+              <label class="form-label" for="alertSensitivity">Alert Sensitivity</label>
+              <select id="alertSensitivity" class="form-select">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div class="settings-field">
+              <label class="form-label">Enabled Modules</label>
+              <div class="module-toggles" id="moduleToggles"></div>
+            </div>
+            <button class="btn btn-teal" type="submit" style="width: 100%; justify-content: center">
+              <svg viewBox="0 0 24 24">
+                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+              Save Settings
+            </button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Audit Reports</div>
+              <div class="card-sub">Security events and system logs</div>
+            </div>
+            <div class="card-actions">
+              <button id="exportAuditCsvButton" class="btn btn-ghost btn-sm" type="button">
+                <svg viewBox="0 0 24 24">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                CSV
+              </button>
+              <button id="exportAuditPdfButton" class="btn btn-ghost btn-sm" type="button">
+                <svg viewBox="0 0 24 24">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                PDF
+              </button>
+            </div>
+          </div>
+
+          <div class="audit-summary">
+            <div class="audit-stat">
+              <div class="audit-stat-label">Total Logs</div>
+              <div class="audit-stat-value" id="auditLogCount">0</div>
+            </div>
+            <div class="audit-stat">
+              <div class="audit-stat-label">Security Events</div>
+              <div class="audit-stat-value" id="auditEventCount">0</div>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Source</th>
+                  <th>Severity</th>
+                  <th>Risk</th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody id="auditReportBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      window.BACKEND_URL = "http://localhost:5000";
+
+      if (!localStorage.getItem("auth_token")) {
+        window.location.href = "login.html";
+      }
+
+      document.getElementById("adminLogoutButton")?.addEventListener("click", () => {
+        localStorage.removeItem("auth_token");
+        localStorage.removeItem("user_role");
+        window.location.href = "login.html";
+      });
+
+      document
+        .getElementById("refreshActivitiesButton")
+        ?.addEventListener("click", () => {
+          if (typeof loadActivities === "function") loadActivities();
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="../assets/js/dashboard.js"></script>
+    <script src="../assets/js/socket.js"></script>
+  </body>
+</html>

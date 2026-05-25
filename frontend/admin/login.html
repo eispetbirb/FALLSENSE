@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FallSense – Admin Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:wght@700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="assets/css/admin-login.css" />
+  </head>
+  <body>
+    <div class="page">
+      <div class="left-panel">
+        <div class="left-inner">
+          <div class="admin-icon-wrap">
+            <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none">
+              <path
+                d="M24 4L8 11v12c0 10.5 6.8 20.3 16 23 9.2-2.7 16-12.5 16-23V11L24 4Z"
+                stroke="#A8D8DB"
+                stroke-width="2.5"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M17 24l5 5 9-9"
+                stroke="#5BAFB4"
+                stroke-width="2.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </div>
+
+          <h2 class="left-title">Admin<br /><span>Control Panel</span></h2>
+          <p class="left-desc">
+            Secure access to the FallSense management dashboard for authorized
+            personnel only.
+          </p>
+
+          <div class="feature-list">
+            <div class="feature-item">
+              <div class="feature-dot"></div>
+              <span class="feature-text">Patient monitoring & alerts</span>
+            </div>
+            <div class="feature-item">
+              <div class="feature-dot"></div>
+              <span class="feature-text">Incident reports & analytics</span>
+            </div>
+            <div class="feature-item">
+              <div class="feature-dot"></div>
+              <span class="feature-text">User & caregiver management</span>
+            </div>
+            <div class="feature-item">
+              <div class="feature-dot"></div>
+              <span class="feature-text">System configuration & logs</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="brand-overlay">
+          <div class="logo-fallback">
+            <img
+              src="../caregiver/assets/logo2.png"
+              alt="FallSense Logo"
+              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <div class="logo-fallback-panel" style="display: none">
+              <div class="logo-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="7" r="3.5" />
+                  <path
+                    d="M5 20c0-3.866 3.134-7 7-7s7 3.134 7 7"
+                    stroke="white"
+                    stroke-width="2"
+                    fill="none"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
+              <div class="logo-text-wrap">
+                <span class="logo-name">FallSense</span>
+                <span class="logo-sub">Elderly Monitor</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="card">
+          <div class="admin-badge">
+            <div class="badge-dot"></div>
+            Administrator Access
+          </div>
+
+          <h1 class="card-title">SIGN IN</h1>
+          <p class="card-subtitle">
+            Enter your admin credentials to access the control panel
+          </p>
+
+          <div id="loginMessage" class="d-none" role="alert"></div>
+
+          <form id="loginForm">
+            <div class="field">
+              <label for="email">Email<span class="req">*</span></label>
+              <div class="input-wrap">
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  placeholder="admin@fallsense.com"
+                  autocomplete="username"
+                  required
+                />
+                <svg class="field-icon" viewBox="0 0 24 24">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                </svg>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="password">Password<span class="req">*</span></label>
+              <div class="input-wrap">
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  placeholder="••••••••••••"
+                  autocomplete="current-password"
+                  required
+                />
+                <svg class="field-icon" viewBox="0 0 24 24">
+                  <rect x="5" y="11" width="14" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 018 0v4" />
+                </svg>
+              </div>
+            </div>
+
+            <div class="forgot-row">
+              <a href="#">Forgot password?</a>
+            </div>
+
+            <button class="btn-signin" type="submit">
+              <svg viewBox="0 0 24 24">
+                <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              Sign In as Admin
+            </button>
+          </form>
+
+          <p class="register-row">
+            Not an admin?
+            <a href="../caregiver/login.html">Go to Caregiver Login</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.BACKEND_URL = "http://localhost:5000";
+    </script>
+    <script src="../assets/js/login.js"></script>
+  </body>
+</html>

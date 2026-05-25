@@ -1,0 +1,43 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #0b1220;
+}
+
+.card {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  transition: 0.2s ease;
+}
+
+.alert {
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+canvas {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+#alerts,
+#activities {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+#alerts::-webkit-scrollbar,
+#activities::-webkit-scrollbar {
+  width: 6px;
+}
+
+#alerts::-webkit-scrollbar-thumb,
+#activities::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 10px;
+}
