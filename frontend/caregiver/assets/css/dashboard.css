@@ -468,7 +468,7 @@ main {
 
 .main-grid {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 1fr;
   gap: 20px;
 }
 
