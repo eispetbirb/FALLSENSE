@@ -149,7 +149,9 @@ def _detection_loop(socketio, url: str):
             socketio.emit(
                 "posture_alert",
                 {
+                    "source": "ai_pose_detector",
                     "alert_type": "laying_down",
+                    "trigger": "laying_down",
                     "severity": "critical",
                     "message": "🚨 LAYING DOWN DETECTED",
                     "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -162,7 +164,9 @@ def _detection_loop(socketio, url: str):
             socketio.emit(
                 "posture_alert",
                 {
+                    "source": "ai_pose_detector",
                     "alert_type": "falling",
+                    "trigger": "falling",
                     "severity": "warning",
                     "message": "⚠️ FALLING DETECTED",
                     "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
