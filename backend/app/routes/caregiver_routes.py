@@ -285,6 +285,74 @@ def get_medications():
     return jsonify([serialize_medication(schedule) for schedule in schedules])
 
 
+@caregiver_bp.route("/medications", methods=["POST"])
+@role_required(["caregiver"])
+def create_medication_schedule():
+    data = request.get_json() or {}
+
+    patient_id = (data.get("patient_id") or "").strip()
+    medicine_name = (data.get("medicine_name") or "").strip()
+    dosage = (data.get("dosage") or "").strip()
+    schedule_time = (data.get("schedule_time") or "").strip()
+
+    if not patient_id:
+        return jsonify({"message": "patient_id is required"}), 400
+    if not medicine_name:
+        return jsonify({"message": "medicine_name is required"}), 400
+    if not dosage:
+        return jsonify({"message": "dosage is required"}), 400
+    if not schedule_time:
+        return jsonify({"message": "schedule_time is required"}), 400
+
+    schedule = MedicationSchedule(
+        patient_id=patient_id,
+        medicine_name=medicine_name,
+        dosage=dosage,
+        schedule_time=schedule_time,
+        status="pending",
+        reminder_badge=(data.get("reminder_badge") or "normal"),
+        adherence_note=data.get("note"),
+    )
+    db.session.add(schedule)
+    db.session.commit()
+
+    socketio.emit("medication_updated", {"id": schedule.id}, namespace="/")
+    emit_activity({
+        "user_id": get_jwt_identity(),
+        "action": "caregiver_create_medication_schedule",
+        "status": "success",
+        "created_at": datetime.utcnow().isoformat(),
+        "meta": {
+            "medication_id": schedule.id,
+            "patient_id": schedule.patient_id,
+        },
+    })
+
+    return jsonify(serialize_medication(schedule)), 201
+
+
+@caregiver_bp.route("/medications/<medication_id>", methods=["DELETE"])
+@role_required(["caregiver"])
+def delete_medication_schedule(medication_id):
+    schedule = MedicationSchedule.query.get(medication_id)
+    if not schedule:
+        return jsonify({"message": "Medication schedule not found"}), 404
+
+    db.session.delete(schedule)
+    db.session.commit()
+
+    socketio.emit("medication_updated", {"id": medication_id, "deleted": True}, namespace="/")
+    emit_activity({
+        "user_id": get_jwt_identity(),
+        "action": "caregiver_delete_medication_schedule",
+        "status": "success",
+        "created_at": datetime.utcnow().isoformat(),
+        "meta": {"medication_id": medication_id},
+    })
+
+    return jsonify({"message": "Deleted"})
+
+
 @caregiver_bp.route("/medications/<medication_id>/status", methods=["PUT"])
 @role_required(["caregiver"])
 def update_medication_status(medication_id):

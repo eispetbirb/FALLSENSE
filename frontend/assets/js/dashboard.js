@@ -441,6 +441,90 @@ function renderAuditReport(report = {}) {
   `;
 }
 
+// =========================
+// MEDICATION SCHEDULES (DB VIEW)
+// =========================
+function formatCompactTime(value) {
+  if (!value) return "-";
+  const parsed = parseBackendTimestamp(value);
+  return parsed ? formatTime(parsed) : String(value);
+}
+
+function renderMedicationSchedules(items = []) {
+  const tbody = document.getElementById("medicationSchedulesBody");
+  if (!tbody) return;
+
+  tbody.innerHTML =
+    items
+      .map((row) => {
+        const status = String(row.status || "pending").toLowerCase();
+        const badgeClass =
+          status === "taken" ? "low" : status === "missed" ? "high" : "medium";
+        const updated =
+          row.updated_at || row.taken_at || row.missed_at || row.schedule_time;
+
+        return `
+          <tr>
+            <td><strong>${escapeHtml(row.medicine_name || "-")}</strong></td>
+            <td style="color:var(--muted); font-size:12px;">${escapeHtml(row.dosage || "-")}</td>
+            <td style="font-size:12px; color:var(--muted);">${escapeHtml(row.patient_id || "-")}</td>
+            <td style="font-size:12px; color:var(--muted);">${escapeHtml(row.schedule_time || "-")}</td>
+            <td><span class="sev-pill ${badgeClass}">${escapeHtml(status)}</span></td>
+            <td style="font-size:12px; color:var(--muted);">${escapeHtml(formatCompactTime(updated))}</td>
+          </tr>
+        `;
+      })
+      .join("") ||
+    `
+      <tr>
+        <td colspan="6" style="text-align:center; color:var(--muted); font-size:13px;">
+          No medication schedules found
+        </td>
+      </tr>
+    `;
+}
+
+function buildMedicationSchedulesQuery() {
+  const patientId = document
+    .getElementById("medSchedulePatientFilter")
+    ?.value?.trim();
+  const status = document
+    .getElementById("medScheduleStatusFilter")
+    ?.value?.trim();
+  const limit = Number(
+    document.getElementById("medScheduleLimit")?.value || 200,
+  );
+
+  const params = new URLSearchParams();
+  if (patientId) params.set("patient_id", patientId);
+  if (status) params.set("status", status);
+  if (Number.isFinite(limit)) params.set("limit", String(limit));
+  params.set("t", String(Date.now()));
+  return params.toString();
+}
+
+async function loadMedicationSchedules() {
+  const tbody = document.getElementById("medicationSchedulesBody");
+  if (tbody) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center; color:var(--muted); font-size:13px;">
+          Loading medication schedules...
+        </td>
+      </tr>
+    `;
+  }
+
+  const query = buildMedicationSchedulesQuery();
+  const res = await safeFetch(
+    `${DASHBOARD_BACKEND_URL}/api/admin/medication-schedules?${query}`,
+    getFetchOptions(),
+  );
+  if (!res) return;
+  const data = await res.json();
+  renderMedicationSchedules(Array.isArray(data) ? data : []);
+}
+
 function rebuildActivityTypeCounts(activities = []) {
   activityTypeCounts = {
     login_success: 0,
@@ -813,6 +897,7 @@ function initApp() {
   loadUsers();
   loadSystemConfig();
   loadAuditReport();
+  loadMedicationSchedules();
   initSecurityChart();
 }
 

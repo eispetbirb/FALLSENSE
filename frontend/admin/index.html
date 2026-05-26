@@ -191,6 +191,84 @@
       <div class="card">
         <div class="card-header">
           <div>
+            <div class="card-title">Medication Schedules (Database)</div>
+            <div class="card-sub">
+              Live view of rows stored in <code>medication_schedules</code>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              id="refreshMedicationSchedulesButton"
+            >
+              <svg viewBox="0 0 24 24">
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path
+                  d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"
+                />
+              </svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="user-form-row" style="margin-bottom: 14px">
+          <div>
+            <label class="form-label" for="medSchedulePatientFilter"
+              >Patient ID filter</label
+            >
+            <input
+              id="medSchedulePatientFilter"
+              class="form-input"
+              placeholder="e.g. patient-1234abcd"
+            />
+          </div>
+          <div>
+            <label class="form-label" for="medScheduleStatusFilter"
+              >Status filter</label
+            >
+            <select id="medScheduleStatusFilter" class="form-select">
+              <option value="" selected>All</option>
+              <option value="pending">Pending</option>
+              <option value="taken">Taken</option>
+              <option value="missed">Missed</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="medScheduleLimit">Limit</label>
+            <input
+              id="medScheduleLimit"
+              type="number"
+              min="1"
+              max="500"
+              class="form-input"
+              value="200"
+            />
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Medicine</th>
+                <th>Dosage</th>
+                <th>Patient ID</th>
+                <th>Schedule</th>
+                <th>Status</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody id="medicationSchedulesBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
             <div class="card-title">User Management</div>
             <div class="card-sub">
               Create, update, lock, and remove caregiver and patient accounts
@@ -412,6 +490,14 @@
         .getElementById("refreshActivitiesButton")
         ?.addEventListener("click", () => {
           if (typeof loadActivities === "function") loadActivities();
+        });
+
+      document
+        .getElementById("refreshMedicationSchedulesButton")
+        ?.addEventListener("click", () => {
+          if (typeof loadMedicationSchedules === "function") {
+            loadMedicationSchedules();
+          }
         });
     </script>
 

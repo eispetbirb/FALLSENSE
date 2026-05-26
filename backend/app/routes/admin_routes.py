@@ -9,6 +9,7 @@ from app.models.alert_model import Alert
 from app.models.security_event_model import SecurityEvent
 from app.models.system_config_model import SystemConfig
 from app.models.user_model import User
+from app.models.medication_model import MedicationSchedule
 from app.middleware.role_middleware import role_required
 from app.extensions import db
 from app.services.security_service import get_system_config, process_security_event
@@ -38,6 +39,22 @@ def serialize_config(config):
         "alert_sensitivity": config.alert_sensitivity,
         "enabled_modules": config.enabled_modules or {},
         "updated_at": str(config.updated_at) if config.updated_at else None,
+    }
+
+
+def serialize_medication_schedule(schedule):
+    return {
+        "id": schedule.id,
+        "patient_id": schedule.patient_id,
+        "medicine_name": schedule.medicine_name,
+        "dosage": schedule.dosage,
+        "schedule_time": schedule.schedule_time,
+        "status": schedule.status,
+        "reminder_badge": schedule.reminder_badge,
+        "taken_at": schedule.taken_at.isoformat() if schedule.taken_at else None,
+        "missed_at": schedule.missed_at.isoformat() if schedule.missed_at else None,
+        "adherence_note": schedule.adherence_note,
+        "updated_at": schedule.updated_at.isoformat() if schedule.updated_at else None,
     }
 
 
@@ -404,6 +421,26 @@ def export_audit_pdf():
     response = Response(pdf_bytes, mimetype="application/pdf")
     response.headers["Content-Disposition"] = "attachment; filename=audit-report.pdf"
     return response
+
+
+# =========================
+# 6. MEDICATION SCHEDULES (DB VIEW)
+# =========================
+@admin_bp.route("/medication-schedules", methods=["GET"])
+@role_required(["admin"])
+def medication_schedules():
+    patient_id = (request.args.get("patient_id") or "").strip()
+    status = (request.args.get("status") or "").strip().lower()
+    limit = min(500, max(1, int(request.args.get("limit", 200))))
+
+    query = MedicationSchedule.query
+    if patient_id:
+        query = query.filter(MedicationSchedule.patient_id == patient_id)
+    if status:
+        query = query.filter(db.func.lower(MedicationSchedule.status) == status)
+
+    schedules = query.order_by(MedicationSchedule.updated_at.desc()).limit(limit).all()
+    return jsonify([serialize_medication_schedule(item) for item in schedules])
 
 
 # =========================

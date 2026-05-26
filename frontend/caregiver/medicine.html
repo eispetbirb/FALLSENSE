@@ -41,7 +41,7 @@
         <li><a href="medicine.html" class="active"><svg viewBox="0 0 24 24"><path d="M19 9h-2V7a7 7 0 10-14 0v2H1v13h18V9z"/><line x1="10" y1="13" x2="10" y2="17"/><line x1="8" y1="15" x2="12" y2="15"/></svg>Medications</a></li>
       </ul>
       <div class="nav-divider"></div>
-      <button class="btn-logout">
+      <button class="btn-logout" data-action="logout">
         <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Logout
       </button>
@@ -166,8 +166,8 @@
               <input class="form-input" type="text" id="medDose" placeholder="e.g. 1 tablet" />
             </div>
             <div>
-              <label class="form-label">Patient / Label</label>
-              <input class="form-input" type="text" id="medPatient" placeholder="e.g. Lola Rosa" />
+              <label class="form-label">Patient ID</label>
+              <input class="form-input" type="text" id="medPatient" placeholder="e.g. patient-1234abcd" />
             </div>
           </div>
 
@@ -228,8 +228,7 @@
   <div id="toastContainer"></div>
 
   <script>
-    let medications = JSON.parse(localStorage.getItem('fs_meds') || '[]');
-    let logs = JSON.parse(localStorage.getItem('fs_medlogs') || '{}');
+    let schedules = [];
     let currentYear, currentMonth, selectedDate;
     const today = new Date();
     currentYear = today.getFullYear();
@@ -243,19 +242,48 @@
     function toDateStr(d) {
       return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     }
-    function save() {
-      localStorage.setItem('fs_meds', JSON.stringify(medications));
-      localStorage.setItem('fs_medlogs', JSON.stringify(logs));
-    }
-    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,5); }
 
-    function showToast(msg, type='info') {
-      const c = document.getElementById('toastContainer');
-      const t = document.createElement('div');
-      t.className = 'toast-item ' + type;
-      t.textContent = msg;
-      c.appendChild(t);
-      setTimeout(() => t.remove(), 2800);
+    function toast(msg, variant = 'info') {
+      window.CaregiverAPI?.showToast?.(msg, variant);
+    }
+
+    function parseDateOnly(value) {
+      if (!value) return null;
+      const dt = new Date(value);
+      if (Number.isNaN(dt.getTime())) return null;
+      return toDateStr(dt);
+    }
+
+    async function fetchSchedules() {
+      const payload = await window.CaregiverAPI.apiJson('/api/medications');
+      schedules = Array.isArray(payload) ? payload : [];
+      return schedules;
+    }
+
+    async function updateScheduleStatus(id, status) {
+      const result = await window.CaregiverAPI.apiJson(
+        `/api/medications/${id}/status`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ status }),
+        },
+      );
+      return result;
+    }
+
+    async function createSchedule({ patient_id, medicine_name, dosage, schedule_time }) {
+      const result = await window.CaregiverAPI.apiJson('/api/medications', {
+        method: 'POST',
+        body: JSON.stringify({ patient_id, medicine_name, dosage, schedule_time }),
+      });
+      return result;
+    }
+
+    async function deleteSchedule(id) {
+      const result = await window.CaregiverAPI.apiJson(`/api/medications/${id}`, {
+        method: 'DELETE',
+      });
+      return result;
     }
 
     document.getElementById('freqGrid').addEventListener('click', e => {
@@ -299,40 +327,105 @@
       return ((hr % 12) || 12) + ':' + m + ' ' + ampm;
     }
 
-    document.getElementById('saveMedBtn').addEventListener('click', () => {
-      const name = document.getElementById('medName').value.trim();
-      if (!name) { showToast('Enter medication name','danger'); return; }
-      const dose = document.getElementById('medDose').value.trim();
-      const patient = document.getElementById('medPatient').value.trim();
-      const startDate = document.getElementById('medStartDate').value || toDateStr(today);
+    document.getElementById('saveMedBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('saveMedBtn');
+      const medicine_name = document.getElementById('medName').value.trim();
+      const dosage = document.getElementById('medDose').value.trim();
+      const patient_id = document.getElementById('medPatient').value.trim();
+
+      if (!medicine_name) { toast('Enter medication name', 'error'); return; }
+      if (!dosage) { toast('Enter dosage', 'error'); return; }
+      if (!patient_id) { toast('Enter patient id', 'error'); return; }
+
       const times = reminderTimes.length ? [...reminderTimes] : ['08:00'];
-      medications.push({ id: uid(), name, dose, patient, freq: selectedFreq, color: selectedColor, times, startDate, active: true });
-      save();
-      document.getElementById('medName').value = '';
-      document.getElementById('medDose').value = '';
-      document.getElementById('medPatient').value = '';
-      document.getElementById('medStartDate').value = '';
-      reminderTimes = []; renderTimeChips();
-      showToast('Medication saved ✓','success'); renderAll();
+
+      try {
+        window.CaregiverAPI.setLoadingState(btn, true, 'Saving...');
+        await Promise.all(
+          times.map((t) =>
+            createSchedule({
+              patient_id,
+              medicine_name,
+              dosage,
+              schedule_time: fmtTime(t),
+            }),
+          ),
+        );
+
+        toast('Medication schedule saved ✓', 'success');
+        document.getElementById('medName').value = '';
+        document.getElementById('medDose').value = '';
+        document.getElementById('medPatient').value = '';
+        reminderTimes = [];
+        renderTimeChips();
+        await fetchSchedules();
+        renderAll();
+      } catch (error) {
+        toast(error?.message || 'Unable to save medication schedule', 'error');
+      } finally {
+        window.CaregiverAPI.setLoadingState(btn, false, 'Save Medication');
+      }
     });
 
     document.getElementById('medsList').addEventListener('click', e => {
-      const btn = e.target.closest('.del-btn');
+      const deleteBtn = e.target.closest('.del-btn');
+      if (deleteBtn) {
+        const id = deleteBtn.dataset.id;
+        if (!id) return;
+        if (!confirm('Delete this medication schedule?')) return;
+
+        window.CaregiverAPI.setLoadingState(deleteBtn, true, 'Deleting...');
+        deleteSchedule(id)
+          .then(() => {
+            toast('Medication schedule deleted', 'info');
+            return fetchSchedules().then(renderAll);
+          })
+          .catch((error) => {
+            toast(error?.message || 'Unable to delete medication schedule', 'error');
+          })
+          .finally(() => {
+            window.CaregiverAPI.setLoadingState(deleteBtn, false, 'Delete');
+          });
+        return;
+      }
+
+      const btn = e.target.closest('.status-btn');
       if (!btn) return;
-      if (!confirm('Remove this medication?')) return;
-      medications = medications.filter(m => m.id !== btn.dataset.id);
-      save(); renderAll(); showToast('Medication removed','info');
+
+      const id = btn.dataset.id;
+      const status = btn.dataset.status;
+      if (!id || !status) return;
+
+      window.CaregiverAPI.setLoadingState(btn, true, 'Saving...');
+      updateScheduleStatus(id, status)
+        .then(() => {
+          toast(`Medication marked as ${status}`, status === 'missed' ? 'warning' : 'success');
+          return fetchSchedules().then(renderAll);
+        })
+        .catch((error) => {
+          toast(error?.message || 'Unable to update medication status', 'error');
+        })
+        .finally(() => {
+          window.CaregiverAPI.setLoadingState(btn, false);
+        });
     });
 
     document.getElementById('dayMedList').addEventListener('click', e => {
       const btn = e.target.closest('.toggle-btn');
       if (!btn) return;
-      const id = btn.dataset.id, date = btn.dataset.date, action = btn.dataset.action;
-      if (!logs[date]) logs[date] = {};
-      if (action === 'taken') logs[date][id] = logs[date][id] === 'taken' ? null : 'taken';
-      else logs[date][id] = logs[date][id] === 'missed' ? null : 'missed';
-      if (!logs[date][id]) delete logs[date][id];
-      save(); renderAll();
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      if (!id || !action) return;
+
+      window.CaregiverAPI.setLoadingState(btn, true, '...');
+      updateScheduleStatus(id, action)
+        .then(() => fetchSchedules().then(renderAll))
+        .catch((error) => {
+          toast(error?.message || 'Unable to update medication status', 'error');
+        })
+        .finally(() => {
+          window.CaregiverAPI.setLoadingState(btn, false);
+        });
     });
 
     const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -346,24 +439,30 @@
     });
 
     function getMedsForDate(dateStr) {
-      const d = new Date(dateStr + 'T00:00:00');
-      return medications.filter(med => {
-        const start = new Date(med.startDate + 'T00:00:00');
-        if (d < start) return false;
-        if (med.freq === 'Weekly') return d.getDay() === start.getDay();
-        return true;
-      });
+      // Backend schedules currently do not include recurrence rules; treat as always relevant.
+      // For calendar, we show taken/missed entries on the day they were recorded, plus pending on "today".
+      const todayStr = toDateStr(today);
+      if (dateStr === todayStr) return schedules;
+
+      const taken = schedules.filter((item) => parseDateOnly(item.taken_at) === dateStr);
+      const missed = schedules.filter((item) => parseDateOnly(item.missed_at) === dateStr);
+      const ids = new Set([...taken, ...missed].map((item) => item.id));
+      return schedules.filter((item) => ids.has(item.id));
     }
 
     function getStatusForDate(dateStr) {
       const meds = getMedsForDate(dateStr);
       if (!meds.length) return null;
-      const dayLogs = logs[dateStr] || {};
-      const taken = meds.filter(m => dayLogs[m.id] === 'taken').length;
-      const missed = meds.filter(m => dayLogs[m.id] === 'missed').length;
       const isToday = dateStr === toDateStr(today);
       const isPast = new Date(dateStr + 'T00:00:00') < new Date(toDateStr(today) + 'T00:00:00');
-      return { meds, taken, missed, total: meds.length, isToday, isPast };
+
+      const taken = meds.filter((m) => parseDateOnly(m.taken_at) === dateStr).length;
+      const missed = meds.filter((m) => parseDateOnly(m.missed_at) === dateStr).length;
+      const pendingToday = isToday
+        ? meds.filter((m) => String(m.status || '').toLowerCase() === 'pending').length
+        : 0;
+
+      return { meds, taken, missed, pendingToday, total: meds.length, isToday, isPast };
     }
 
     function renderCalendar() {
@@ -396,12 +495,16 @@
       if (status) {
         const dots = document.createElement('div'); dots.className = 'cal-dots';
         status.meds.forEach(m => {
-          const log = (logs[dateStr] || {})[m.id];
           const dot = document.createElement('div'); dot.className = 'cal-dot';
-          if (log === 'taken') dot.style.background = '#2e9e63';
-          else if (log === 'missed') dot.style.background = '#d94f4f';
+          const taken = parseDateOnly(m.taken_at) === dateStr;
+          const missed = parseDateOnly(m.missed_at) === dateStr;
+          const pending = String(m.status || '').toLowerCase() === 'pending';
+
+          if (taken) dot.style.background = '#2e9e63';
+          else if (missed) dot.style.background = '#d94f4f';
           else if (status.isPast && !status.isToday) dot.style.background = '#d94f4f';
-          else dot.style.background = '#d9870f';
+          else if (status.isToday && pending) dot.style.background = '#d9870f';
+          else dot.style.background = '#5BAFB4';
           dots.appendChild(dot);
         });
         cell.appendChild(dots);
@@ -409,8 +512,8 @@
           const pills = document.createElement('div'); pills.className = 'cal-pills';
           status.meds.slice(0,2).forEach(m => {
             const p = document.createElement('div'); p.className = 'cal-pill';
-            p.style.background = m.color + '22'; p.style.color = m.color;
-            p.textContent = m.name.split(' ')[0]; pills.appendChild(p);
+            p.style.background = '#5BAFB422'; p.style.color = '#5BAFB4';
+            p.textContent = (m.medicine_name || 'Med').split(' ')[0]; pills.appendChild(p);
           });
           cell.appendChild(pills);
         }
@@ -430,21 +533,20 @@
       if (!meds.length) {
         el.innerHTML = `<div class="empty"><div class="empty-icon">💊</div>No medications scheduled for this day.</div>`; return;
       }
-      const dayLogs = logs[selectedDate] || {};
       el.innerHTML = meds.map(m => {
-        const log = dayLogs[m.id];
-        let statusEl, statusClass;
-        if (log === 'taken') { statusEl = 'Taken'; statusClass = 'status-taken'; }
-        else if (log === 'missed') { statusEl = 'Missed'; statusClass = 'status-missed'; }
-        else if (isPast && !isToday) { statusEl = 'Missed'; statusClass = 'status-missed'; }
-        else if (isToday) { statusEl = 'Pending'; statusClass = 'status-pending'; }
-        else { statusEl = 'Upcoming'; statusClass = 'status-upcoming'; }
+        const status = String(m.status || 'pending').toLowerCase();
+        let statusEl = status === 'taken' ? 'Taken' : status === 'missed' ? 'Missed' : 'Pending';
+        let statusClass = status === 'taken' ? 'status-taken' : status === 'missed' ? 'status-missed' : 'status-pending';
+        if (!isToday && !isPast && status === 'pending') {
+          statusEl = 'Upcoming';
+          statusClass = 'status-upcoming';
+        }
         return `
           <div class="med-item">
-            <div class="med-color" style="background:${m.color}"></div>
+            <div class="med-color" style="background:#5BAFB4"></div>
             <div class="med-info">
-              <div class="med-name">${m.name}${m.dose ? ' <span style="font-weight:400;color:var(--muted)">— ' + m.dose + '</span>' : ''}</div>
-              <div class="med-time">${m.times.map(fmtTime).join(', ')} · ${m.freq}${m.patient ? ' · ' + m.patient : ''}</div>
+              <div class="med-name">${m.medicine_name}${m.dosage ? ' <span style="font-weight:400;color:var(--muted)">— ' + m.dosage + '</span>' : ''}</div>
+              <div class="med-time">${m.schedule_time ? m.schedule_time : ''}${m.patient_id ? ' · Patient ' + m.patient_id : ''}</div>
             </div>
             <span class="med-status ${statusClass}">${statusEl}</span>
             ${(isToday || isPast) ? `
@@ -457,46 +559,46 @@
 
     function renderMedsList() {
       const el = document.getElementById('medsList');
-      document.getElementById('medCount').textContent = medications.length + ' added';
-      if (!medications.length) {
+      document.getElementById('medCount').textContent = schedules.length + ' schedules';
+      if (!schedules.length) {
         el.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>No medications added yet.</div>`; return;
       }
-      el.innerHTML = medications.map(m => `
+      el.innerHTML = schedules.map(m => `
         <div class="med-row">
-          <div class="med-row-color" style="background:${m.color}"></div>
+          <div class="med-row-color" style="background:#5BAFB4"></div>
           <div class="med-row-info">
-            <div class="med-row-name">${m.name}${m.dose ? ' <span style="font-weight:400;color:var(--muted)">— ' + m.dose + '</span>' : ''}</div>
-            <div class="med-row-meta">${m.freq} · ${m.times.map(fmtTime).join(', ')}${m.patient ? ' · ' + m.patient : ''}</div>
+            <div class="med-row-name">${m.medicine_name}${m.dosage ? ' <span style="font-weight:400;color:var(--muted)">— ' + m.dosage + '</span>' : ''}</div>
+            <div class="med-row-meta">${m.schedule_time ? m.schedule_time : ''}${m.patient_id ? ' · Patient ' + m.patient_id : ''}</div>
           </div>
-          <span class="pill teal">${m.freq}</span>
-          <button class="del-btn" data-id="${m.id}" title="Delete">✕</button>
+          <span class="pill teal">${m.status || 'pending'}</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn-ghost status-btn" data-id="${m.id}" data-status="taken" title="Mark taken">Taken</button>
+            <button class="btn-ghost status-btn" data-id="${m.id}" data-status="missed" title="Mark missed">Missed</button>
+            <button class="btn-ghost del-btn" data-id="${m.id}" title="Delete">Delete</button>
+          </div>
         </div>`).join('');
     }
 
     function renderStats() {
-      let monthTaken = 0, monthTotal = 0;
-      const year = today.getFullYear(), month = today.getMonth();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-        const dayDate = new Date(dateStr + 'T00:00:00');
-        if (dayDate > today) continue;
-        const meds = getMedsForDate(dateStr);
-        const dayLogs = logs[dateStr] || {};
-        meds.forEach(m => { monthTotal++; if (dayLogs[m.id] === 'taken') monthTaken++; });
-      }
-      const monthMissed = monthTotal - monthTaken;
+      const nowYear = today.getFullYear();
+      const nowMonth = today.getMonth();
+      const monthPrefix = `${nowYear}-${String(nowMonth + 1).padStart(2,'0')}-`;
+
+      const monthTaken = schedules.filter((m) => (parseDateOnly(m.taken_at) || '').startsWith(monthPrefix)).length;
+      const monthMissed = schedules.filter((m) => (parseDateOnly(m.missed_at) || '').startsWith(monthPrefix)).length;
+      const monthTotal = monthTaken + monthMissed;
+      const pct = monthTotal ? Math.round(monthTaken / monthTotal * 100) : null;
+
       document.getElementById('statTaken').textContent = monthTaken;
       document.getElementById('statMissed').textContent = monthMissed;
-      const pct = monthTotal ? Math.round(monthTaken / monthTotal * 100) : null;
       document.getElementById('statAdherence').textContent = pct !== null ? pct + '%' : '—';
-      document.getElementById('statTakenTrend').textContent = monthTotal ? Math.round(monthTaken/monthTotal*100)+'%' : '—';
-      document.getElementById('statMissedTrend').textContent = monthTotal ? Math.round(monthMissed/monthTotal*100)+'%' : '—';
-      const todayMeds = getMedsForDate(toDateStr(today));
-      const todayLogs = logs[toDateStr(today)] || {};
-      document.getElementById('heroTotal').textContent = medications.length;
-      document.getElementById('heroTaken').textContent = todayMeds.filter(m => todayLogs[m.id] === 'taken').length;
-      document.getElementById('heroMissed').textContent = todayMeds.filter(m => todayLogs[m.id] === 'missed').length;
+      document.getElementById('statTakenTrend').textContent = monthTotal ? `${pct}%` : '—';
+      document.getElementById('statMissedTrend').textContent = monthTotal ? `${100 - pct}%` : '—';
+
+      const todayStr = toDateStr(today);
+      document.getElementById('heroTotal').textContent = schedules.length;
+      document.getElementById('heroTaken').textContent = schedules.filter((m) => parseDateOnly(m.taken_at) === todayStr).length;
+      document.getElementById('heroMissed').textContent = schedules.filter((m) => parseDateOnly(m.missed_at) === todayStr).length;
     }
 
     function renderAll() { renderCalendar(); renderDayDetail(); renderMedsList(); renderStats(); }
@@ -505,7 +607,19 @@
     document.getElementById('menuClose').addEventListener('click', () => document.getElementById('navModal').classList.remove('open'));
     document.getElementById('navModal').addEventListener('click', e => { if (e.target === document.getElementById('navModal')) document.getElementById('navModal').classList.remove('open'); });
     document.getElementById('medStartDate').value = toDateStr(today);
-    renderAll();
+    window.addEventListener('DOMContentLoaded', async () => {
+      if (!window.CaregiverAPI?.requireCaregiverSession?.()) return;
+      window.CaregiverAPI?.bindLogoutButtons?.();
+      await fetchSchedules().catch(() => []);
+      renderAll();
+      window.initCaregiverSocket?.();
+    });
   </script>
+  <script>
+    window.BACKEND_URL = "http://localhost:5000";
+  </script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/socket.js"></script>
 </body>
 </html>
