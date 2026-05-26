@@ -198,29 +198,7 @@
           </div>
         </div>
 
-        <div class="stream-info">
-          <div class="stream-info-row">
-            <div class="stream-info-label">URL</div>
-            <div class="stream-info-value" id="streamUrlDisplay">
-              No stream configured
-            </div>
-          </div>
-          <div class="stream-info-row">
-            <div class="stream-info-label">Status</div>
-            <div class="stream-info-value" id="streamStatusDisplay">
-              <span class="status-badge waiting">waiting</span>
-            </div>
-          </div>
-          <div class="stream-info-row">
-            <div class="stream-info-label">Actions</div>
-            <div class="stream-info-value">
-              <button type="button" class="btn-test-url" id="testStreamButton" style="display: none">
-                Test URL in new tab
-              </button>
-              <span class="form-hint" id="noStreamHint">Set a URL to enable actions</span>
-            </div>
-          </div>
-        </div>
+        <!-- Stream info removed: URL / Status / Actions hidden per request -->
       </div>
 
       <!-- DROP-IN REPLACEMENT for the entire <div class="right-col"> in monitoring.html -->
@@ -250,8 +228,7 @@
           </div>
 
           <div class="health-support">
-            Supports phone camera, IP webcam, and future OpenCV/Mediapipe
-            verification flows. Keep this page open during active monitoring
+            Supports phone camera, and IP webcam. Keep this page open during active monitoring
             sessions.
           </div>
         </div>
@@ -261,7 +238,7 @@
           <div class="fall-alert-header">
             <div>
               <div class="fall-alert-title">Fall Detection</div>
-              <div class="fall-alert-sub">AI alerts from best.pt</div>
+              
             </div>
             <span class="fall-alert-pill" id="fallAlertPill">monitoring</span>
           </div>
@@ -291,7 +268,6 @@
           <div class="card-header">
             <div>
               <div class="card-title">Patient States</div>
-              <div class="card-sub">Live status from Socket.IO</div>
             </div>
           </div>
 
