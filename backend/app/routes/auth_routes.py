@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
+from datetime import datetime, timedelta
 
 from app.extensions import db, bcrypt
 from app.models.user_model import User
-from app.services.security_service import log_activity, process_security_event, trigger_alert
+from app.services.security_service import process_security_event, trigger_alert
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -61,48 +62,41 @@ def login():
     user = User.query.filter_by(email=email).first()
 
     if not user:
-        log_activity(
-            user_id=None,
-            action="login_failed_user_not_found",
-            ip=ip,
-            user_agent=user_agent,
-            status="failed"
-        )
         process_security_event(None, "login_failed_user_not_found", ip, user_agent)
         return jsonify({"message": "Invalid credentials"}), 401
 
     # ======================
     # CHECK LOCKED ACCOUNT
     # ======================
-    if user.is_locked:
-        log_activity(
-            user_id=user.id,
-            action="login_blocked_locked_account",
-            ip=ip,
-            user_agent=user_agent,
-            status="blocked"
-        )
-        process_security_event(user, "login_blocked_locked_account", ip, user_agent)
-        return jsonify({"message": "Account is locked"}), 403
+    # If there's a locked_until timestamp, check expiry
+    now = datetime.utcnow()
+    if getattr(user, "locked_until", None):
+        if user.locked_until > now:
+            # still in lock period
+            process_security_event(user, "login_blocked_locked_account", ip, user_agent)
+            return jsonify({"message": f"Account temporarily locked until {user.locked_until.isoformat()}Z"}), 403
+        else:
+            # lock expired -> auto-unlock
+            user.is_locked = False
+            user.failed_login_attempts = 0
+            user.locked_until = None
+            db.session.commit()
 
     # ======================
     # VERIFY PASSWORD
     # ======================
     if not bcrypt.check_password_hash(user.password_hash, password):
-        user.failed_login_attempts += 1
+        now = datetime.utcnow()
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+        user.last_failed_attempt = now
 
-        log_activity(
-            user_id=user.id,
-            action="failed_login",
-            ip=ip,
-            user_agent=user_agent,
-            status="failed"
-        )
         process_security_event(user, "failed_login", ip, user_agent)
 
-        # AUTO LOCK
-        if user.failed_login_attempts >= 3:
+        # AUTO LOCK: lock after 5 failed attempts for 15 minutes
+        if user.failed_login_attempts >= 5:
+            lock_duration = timedelta(minutes=15)
             user.is_locked = True
+            user.locked_until = now + lock_duration
 
             trigger_alert(
                 alert_type="account_locked",
@@ -113,20 +107,18 @@ def login():
 
         db.session.commit()
 
+        # If account is now locked, return a locked message
+        if user.is_locked and getattr(user, "locked_until", None):
+            return jsonify({"message": f"Account temporarily locked until {user.locked_until.isoformat()}Z"}), 403
+
         return jsonify({"message": "Invalid credentials"}), 401
 
     # ======================
     # SUCCESS LOGIN
     # ======================
     user.failed_login_attempts = 0
+    user.locked_until = None
 
-    log_activity(
-        user_id=user.id,
-        action="login_success",
-        ip=ip,
-        user_agent=user_agent,
-        status="success"
-    )
     process_security_event(user, "login_success", ip, user_agent)
 
     db.session.commit()

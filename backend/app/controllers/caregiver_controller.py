@@ -27,7 +27,7 @@ class CaregiverController:
                 "type": alert.type,
                 "severity": alert.severity,
                 "message": alert.message,
-                "status": alert.status,
+                "status": getattr(alert, "status", "new"),
             }
             for alert in Alert.query.order_by(Alert.created_at.desc()).all()
         ]

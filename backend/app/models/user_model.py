@@ -41,6 +41,18 @@ class User(db.Model):
         default=False
     )
 
+    # Timestamp of the last failed login attempt
+    last_failed_attempt = db.Column(
+        db.DateTime,
+        nullable=True
+    )
+
+    # If set, the account is locked until this time (UTC)
+    locked_until = db.Column(
+        db.DateTime,
+        nullable=True
+    )
+
     # ======================
     # AUDIT TRAIL
     # ======================

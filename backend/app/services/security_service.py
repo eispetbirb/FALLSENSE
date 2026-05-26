@@ -125,7 +125,7 @@ def trigger_alert(alert_type, message, user_id=None, severity="medium"):
             type=alert_type,
             message=message,
             user_id=user_id,
-            severity=severity
+            severity=severity,
         )
 
         db.session.add(alert)
@@ -133,9 +133,12 @@ def trigger_alert(alert_type, message, user_id=None, severity="medium"):
 
         # REAL-TIME ALERT PUSH
         emit_alert({
+            "source": "security_rules",
             "type": alert_type,
+            "trigger": alert_type,
             "message": message,
             "severity": severity,
+            "details": message,
             "created_at": datetime.utcnow().isoformat(),
         })
 

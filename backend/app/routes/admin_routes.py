@@ -184,7 +184,27 @@ def user_item(user_id):
         from app.extensions import bcrypt
         user.password_hash = bcrypt.generate_password_hash(password).decode("utf-8")
     if is_locked is not None:
-        user.is_locked = bool(is_locked)
+        # Toggle lock state; record security event for admin action
+        new_locked_state = bool(is_locked)
+        if new_locked_state and not user.is_locked:
+            # admin locking the account
+            user.is_locked = True
+            # record as a security event via existing pipeline
+            try:
+                process_security_event(user, "admin_lock", request.remote_addr, request.headers.get("User-Agent"))
+            except Exception:
+                # do not block admin update on event recording
+                pass
+        elif not new_locked_state and user.is_locked:
+            # admin unlocking the account - reset failed attempts
+            user.is_locked = False
+            user.failed_login_attempts = 0
+            # clear lock expiration as well
+            user.locked_until = None
+            try:
+                process_security_event(user, "admin_unlock", request.remote_addr, request.headers.get("User-Agent"))
+            except Exception:
+                pass
 
     db.session.commit()
     return jsonify(serialize_user(user))
@@ -245,7 +265,12 @@ def security_summary():
 
     total_users = User.query.count()
     total_alerts = Alert.query.count()
-    failed_logins = ActivityLog.query.filter_by(action="failed_login").count()
+    failed_logins = ActivityLog.query.filter(
+        ActivityLog.action.in_([
+            "failed_login",
+            "login_failed_user_not_found",
+        ])
+    ).count()
     locked_users = User.query.filter_by(is_locked=True).count()
 
     return jsonify({
@@ -393,7 +418,6 @@ def resolve_alert(alert_id):
     if not alert:
         return jsonify({"message": "Alert not found"}), 404
 
-    alert.status = "resolved"
     alert.message = f"{alert.message} (RESOLVED)"
 
     db.session.commit() 

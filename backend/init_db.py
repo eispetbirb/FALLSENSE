@@ -108,13 +108,13 @@ def get_or_create_medication(patient_id: str, medicine_name: str, schedule_time:
 
 
 def get_or_create_alert(patient_id: str, alert_type: str, message: str, **kwargs) -> Alert:
-    alert = Alert.query.filter_by(patient_id=patient_id, type=alert_type, message=message).first()
+    alert = Alert.query.filter_by(type=alert_type, message=message).first()
     if alert:
         for key, value in kwargs.items():
             setattr(alert, key, value)
         return alert
 
-    alert = Alert(patient_id=patient_id, type=alert_type, message=message, **kwargs)
+    alert = Alert(type=alert_type, message=message, **kwargs)
     db.session.add(alert)
     db.session.flush()
     return alert
