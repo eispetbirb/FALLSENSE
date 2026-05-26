@@ -60,7 +60,7 @@ def acknowledge_alert(alert, caregiver_id):
 
     payload = {
         "id": alert.id,
-        "status": alert.status,
+        "status": getattr(alert, "status", "acknowledged"),
         "acknowledged_by": caregiver_id,
         "updated_at": serialize_dt(alert.acknowledged_at),
     }
@@ -76,7 +76,7 @@ def resolve_alert(alert, caregiver_id):
 
     payload = {
         "id": alert.id,
-        "status": alert.status,
+        "status": getattr(alert, "status", "resolved"),
         "resolved_by": caregiver_id,
         "updated_at": serialize_dt(alert.resolved_at),
     }
