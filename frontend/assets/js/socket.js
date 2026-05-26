@@ -77,7 +77,6 @@ function initSocket() {
 
   socket.on("user_activity", (data) => {
     console.log("👤 User Activity:", data);
-    if (typeof addActivity === "function") addActivity(data);
   });
 
   socket.on("security_event", (data) => {

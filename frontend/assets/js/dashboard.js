@@ -114,6 +114,7 @@ async function handleLogin(event) {
 
     localStorage.setItem("auth_token", data.access_token);
     localStorage.setItem("user_role", data.role || "");
+    localStorage.setItem("user_id", data.user_id || "");
 
     showDashboard();
     setTimeout(initApp, 50);
@@ -166,6 +167,7 @@ async function handleCreateDemoAdmin() {
 
     localStorage.setItem("auth_token", data.access_token);
     localStorage.setItem("user_role", data.role || "admin");
+    localStorage.setItem("user_id", data.user_id || "");
 
     showDashboard();
     setTimeout(initApp, 50);
@@ -201,11 +203,34 @@ function getActivitiesContainer() {
   return document.getElementById("activities");
 }
 
-function formatTime(value) {
-  if (!value) return new Date().toLocaleString();
+function parseBackendTimestamp(value) {
+  if (!value) return null;
 
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  if (value instanceof Date) return value;
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(raw);
+  const normalized = raw.replace(" ", "T");
+  const parsed = new Date(hasTimezone ? normalized : `${normalized}Z`);
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatTime(value) {
+  const date = parseBackendTimestamp(value) || new Date();
+
+  return new Intl.DateTimeFormat("en-PH", {
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  }).format(date);
 }
 
 function prependRecord(container, html) {
@@ -335,7 +360,7 @@ function renderUserTable(users = []) {
         <td>
           <div class="action-btns">
             <button type="button" class="icon-btn" title="Edit" data-action="edit-user" data-user-id="${escapeHtml(user.id)}">${ICON_EDIT}</button>
-            <button type="button" class="icon-btn" title="${user.is_locked ? "Unlock" : "Lock"}" data-action="toggle-lock" data-user-id="${escapeHtml(user.id)}">${ICON_LOCK}</button>
+            <button type="button" class="icon-btn" title="${user.is_locked ? "Unlock" : "Lock"}" data-action="toggle-lock" data-user-id="${escapeHtml(user.id)}" data-is-locked="${user.is_locked}">${ICON_LOCK}</button>
             <button type="button" class="icon-btn danger" title="Delete" data-action="delete-user" data-user-id="${escapeHtml(user.id)}">${ICON_DELETE}</button>
           </div>
         </td>
@@ -389,7 +414,7 @@ function renderAuditReport(report = {}) {
         <td style="font-size:12px; color:var(--muted);">${escapeHtml(log.action)}</td>
         <td><span class="sev-pill ${statusClass}">${escapeHtml(log.status)}</span></td>
         <td style="font-size:12px; color:var(--muted);">-</td>
-        <td style="font-size:12px; color:var(--muted);">${escapeHtml(log.created_at)}</td>
+        <td style="font-size:12px; color:var(--muted);">${escapeHtml(formatTime(log.created_at))}</td>
       </tr>
     `);
   }
@@ -402,7 +427,7 @@ function renderAuditReport(report = {}) {
         <td style="font-size:12px; color:var(--muted);">${escapeHtml(event.event_type)}</td>
         <td><span class="sev-pill ${severity}">${escapeHtml(event.severity)}</span></td>
         <td style="font-size:12px; color:var(--amber);">${escapeHtml(event.risk_score)}</td>
-        <td style="font-size:12px; color:var(--muted);">${escapeHtml(event.created_at)}</td>
+        <td style="font-size:12px; color:var(--muted);">${escapeHtml(formatTime(event.created_at))}</td>
       </tr>
     `);
   }
@@ -569,7 +594,10 @@ async function loadActivities() {
 
   rebuildActivityTypeCounts(activities);
 
-  activities.slice(0, 25).forEach((activity) => appendActivityRecord(activity));
+  activities
+    .slice(0, 25)
+    .reverse()
+    .forEach((activity) => appendActivityRecord(activity));
 }
 
 async function loadUsers() {
@@ -617,6 +645,7 @@ async function saveUser(event) {
   document.getElementById("userSaveButton").innerText = "Save User";
   await loadUsers();
   await loadSummary();
+  await loadActivities();
 }
 
 async function deleteUser(userId) {
@@ -630,6 +659,7 @@ async function deleteUser(userId) {
 
   await loadUsers();
   await loadSummary();
+  await loadActivities();
 }
 
 async function toggleUserLock(userId, isLocked) {
@@ -643,6 +673,7 @@ async function toggleUserLock(userId, isLocked) {
   if (!res) return;
   await loadUsers();
   await loadSummary();
+  await loadActivities();
 }
 
 async function editUser(userId) {
@@ -704,6 +735,7 @@ async function saveSystemConfig(event) {
   if (!res) return;
   await res.json();
   await loadSystemConfig();
+  await loadActivities();
 }
 
 async function loadAuditReport() {
@@ -826,14 +858,26 @@ document.addEventListener("DOMContentLoaded", () => {
       if (action === "edit-user") await editUser(userId);
       if (action === "delete-user") await deleteUser(userId);
       if (action === "toggle-lock") {
-        const res = await safeFetch(
-          `${DASHBOARD_BACKEND_URL}/api/admin/users`,
-          getFetchOptions(),
+        const currentAdminId = localStorage.getItem("user_id");
+        if (currentAdminId && currentAdminId === userId) {
+          alert(
+            "You cannot lock or unlock your own account from the admin dashboard.",
+          );
+          return;
+        }
+
+        const buttonEl = event.target.closest(
+          "button[data-action='toggle-lock']",
         );
-        if (!res) return;
-        const users = await res.json();
-        const user = users.find((item) => item.id === userId);
-        if (user) await toggleUserLock(userId, user.is_locked);
+        const isLockedAttr = buttonEl?.dataset?.isLocked;
+        const isLocked = isLockedAttr === "true" || isLockedAttr === "1";
+
+        const confirmation = confirm(
+          isLocked ? "Unlock this account?" : "Lock this account?",
+        );
+        if (!confirmation) return;
+
+        await toggleUserLock(userId, isLocked);
       }
     });
 
