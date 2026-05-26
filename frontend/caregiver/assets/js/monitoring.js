@@ -61,10 +61,39 @@ function updateStreamLiveBadge(status) {
 function streamStatusBadgeClass(status) {
   const normalized = String(status || "").toLowerCase();
   if (normalized === "connected" || normalized === "ready") return "online";
+  if (normalized.includes("laying")) return "offline";
+  if (normalized.includes("falling")) return "warning";
   if (normalized.includes("error") || normalized.includes("offline")) {
     return "offline";
   }
   return "waiting";
+}
+
+function detectionLabelKind(label = "") {
+  const normalized = String(label).toLowerCase().replace(/\s+/g, "_");
+  if (normalized.includes("lay") || normalized.includes("lying")) {
+    return "laying_down";
+  }
+  if (
+    normalized === "falling" ||
+    (normalized.includes("fall") && !normalized.includes("lay"))
+  ) {
+    return "falling";
+  }
+  return null;
+}
+
+function framePostureFromDetections(detections = []) {
+  let hasLaying = false;
+  let hasFalling = false;
+  for (const d of detections) {
+    const kind = detectionLabelKind(d.label);
+    if (kind === "laying_down") hasLaying = true;
+    if (kind === "falling") hasFalling = true;
+  }
+  if (hasLaying) return "laying_down";
+  if (hasFalling) return "falling";
+  return null;
 }
 
 function renderMonitoringPatientStatuses(patients = []) {
@@ -406,7 +435,26 @@ function bindMonitoringNav() {
 // These are called by socket.js when AI events arrive.
 // They update ONLY the existing img/badge/status elements — no new DOM added.
 
-let _fallAlertTimer = null;
+let _postureAlertTimer = null;
+const POSTURE_ALERT_UI_COOLDOWN_MS = 4000;
+let _lastPostureAlertUiAt = 0;
+
+function postureAlertConfig(alertType) {
+  const isLaying = alertType === "laying_down";
+  return {
+    isLaying,
+    streamFlashClass: isLaying ? "ai-laying-flash" : "ai-falling-flash",
+    statusLabel: isLaying ? "laying down" : "falling",
+    cardClass: isLaying ? "triggered" : "triggered-warn",
+    pillClass: isLaying ? "active" : "active-warn",
+    pillText: isLaying ? "alert" : "warn",
+    bannerClass: isLaying ? "" : "warn",
+    eventClass: isLaying ? "" : "warn",
+    bannerMsg: isLaying ? "LAYING DOWN DETECTED" : "FALLING DETECTED",
+    eventText: isLaying ? "Laying down detected" : "Falling detected",
+    logPrefix: isLaying ? "[AI] Laying down alert:" : "[AI] Falling alert:",
+  };
+}
 
 window.onAIFrame = function (data) {
   const img = document.getElementById("cameraFrame");
@@ -414,92 +462,114 @@ window.onAIFrame = function (data) {
 
   if (!img) return;
 
-  // Replace img src with the AI-annotated frame (bounding boxes already drawn)
   img.src = "data:image/jpeg;base64," + data.image;
   img.style.display = "block";
   if (placeholder) placeholder.style.display = "none";
 
-  // Keep the Live badge green while frames are arriving
   updateStreamLiveBadge("connected");
 
-  // Update status display with detection summary (no design change)
-  if (data.detections && data.detections.length) {
-    const hasFall = data.detections.some((d) =>
-      d.label.toLowerCase().includes("fall"),
-    );
+  const posture =
+    data.laying_down
+      ? "laying_down"
+      : data.falling
+        ? "falling"
+        : framePostureFromDetections(data.detections);
+
+  if (posture) {
+    const cfg = postureAlertConfig(posture);
     updateStreamDisplay(
       document.getElementById("streamUrlDisplay")?.textContent || "",
-      hasFall ? "fall detected" : "connected",
+      cfg.statusLabel,
+    );
+  } else if (data.detections?.length) {
+    updateStreamDisplay(
+      document.getElementById("streamUrlDisplay")?.textContent || "",
+      "connected",
     );
   }
 };
 
-window.onAIFallAlert = function (data) {
-  // ── 1. Flash stream-wrap border ───────────────────────────────────────────
+window.onAIPostureAlert = function (data) {
+  const now = Date.now();
+  if (now - _lastPostureAlertUiAt < POSTURE_ALERT_UI_COOLDOWN_MS) return;
+  _lastPostureAlertUiAt = now;
+
+  const alertType =
+    data.alert_type === "laying_down" || data.alert_type === "falling"
+      ? data.alert_type
+      : data.severity === "critical"
+        ? "laying_down"
+        : "falling";
+  const cfg = postureAlertConfig(alertType);
+
   const streamWrap = document.querySelector(".stream-wrap");
   if (streamWrap) {
-    streamWrap.classList.add("ai-fall-flash");
-    clearTimeout(_fallAlertTimer);
-    _fallAlertTimer = setTimeout(
-      () => streamWrap.classList.remove("ai-fall-flash"),
+    streamWrap.classList.remove("ai-falling-flash", "ai-laying-flash");
+    streamWrap.classList.add(cfg.streamFlashClass);
+    clearTimeout(_postureAlertTimer);
+    _postureAlertTimer = setTimeout(() => {
+      streamWrap.classList.remove("ai-falling-flash", "ai-laying-flash");
+    }, 5000);
+  }
+
+  updateStreamDisplay(
+    document.getElementById("streamUrlDisplay")?.textContent || "",
+    cfg.statusLabel,
+  );
+
+  const card = document.getElementById("fallAlertCard");
+  const banner = document.getElementById("fallAlertBanner");
+  const bannerMsg = document.querySelector(".fall-alert-banner-msg");
+  const bannerTime = document.getElementById("fallAlertBannerTime");
+  const pill = document.getElementById("fallAlertPill");
+  const idle = document.getElementById("fallAlertIdle");
+  const log = document.getElementById("fallEventLog");
+  const ts = data.timestamp || new Date().toLocaleTimeString();
+
+  if (card) {
+    card.classList.remove("triggered", "triggered-warn");
+    card.classList.add(cfg.cardClass);
+    setTimeout(
+      () => card.classList.remove("triggered", "triggered-warn"),
       5000,
     );
   }
 
-  // ── 2. Update status badge ────────────────────────────────────────────────
-  updateStreamDisplay(
-    document.getElementById("streamUrlDisplay")?.textContent || "",
-    "fall detected",
-  );
-
-  // ── 3. Drive the Fall Alert card ──────────────────────────────────────────
-  const card    = document.getElementById("fallAlertCard");
-  const banner  = document.getElementById("fallAlertBanner");
-  const bannerTime = document.getElementById("fallAlertBannerTime");
-  const pill    = document.getElementById("fallAlertPill");
-  const idle    = document.getElementById("fallAlertIdle");
-  const log     = document.getElementById("fallEventLog");
-  const ts      = data.timestamp || new Date().toLocaleTimeString();
-
-  // Card pulse
-  if (card) {
-    card.classList.add("triggered");
-    setTimeout(() => card.classList.remove("triggered"), 5000);
-  }
-
-  // Banner flash (auto-hides after 5 s)
   if (banner) {
-    banner.classList.add("show");
+    banner.classList.remove("show", "warn");
+    banner.classList.add("show", cfg.bannerClass);
+    if (bannerMsg) bannerMsg.textContent = cfg.bannerMsg;
     if (bannerTime) bannerTime.textContent = ts;
-    setTimeout(() => banner.classList.remove("show"), 5000);
+    setTimeout(() => banner.classList.remove("show", "warn"), 5000);
   }
 
-  // Pill
   if (pill) {
-    pill.textContent = "alert";
-    pill.classList.add("active");
+    pill.textContent = cfg.pillText;
+    pill.classList.remove("active", "active-warn");
+    pill.classList.add(cfg.pillClass);
     setTimeout(() => {
       pill.textContent = "monitoring";
-      pill.classList.remove("active");
+      pill.classList.remove("active", "active-warn");
     }, 5000);
   }
 
-  // Hide idle placeholder, show log
   if (idle) idle.style.display = "none";
   if (log) {
     log.style.display = "flex";
-    const item = document.createElement("div");
-    item.className = "fall-event-item";
-    item.innerHTML = `
-      <div class="fall-event-dot"></div>
-      <div class="fall-event-text">Fall detected</div>
-      <div class="fall-event-time">${ts}</div>
+    log.innerHTML = `
+      <div class="fall-event-item ${cfg.eventClass}">
+        <div class="fall-event-dot"></div>
+        <div class="fall-event-text">${cfg.eventText}</div>
+        <div class="fall-event-time">${ts}</div>
+      </div>
     `;
-    log.prepend(item);
   }
 
-  console.warn("[AI] Fall alert:", data);
+  console.warn(cfg.logPrefix, data);
 };
+
+// Backward-compatible alias
+window.onAIFallAlert = window.onAIPostureAlert;
 
 window.onAIStreamError = function (data) {
   updateStreamDisplay(
@@ -521,18 +591,27 @@ window.onAIStreamStatus = function (data) {
   );
 };
 
-// ── Inline style for fall flash (no CSS file change needed) ───────────────────
-(function injectFallFlashStyle() {
+// ── Inline stream border flashes for posture alerts ───────────────────────────
+(function injectPostureFlashStyle() {
   const style = document.createElement("style");
   style.textContent = `
-    .stream-wrap.ai-fall-flash {
+    .stream-wrap.ai-laying-flash {
       outline: 3px solid #ef4444;
       outline-offset: -3px;
-      animation: ai-fall-pulse 0.6s ease-in-out infinite alternate;
+      animation: ai-laying-pulse 0.6s ease-in-out infinite alternate;
     }
-    @keyframes ai-fall-pulse {
+    .stream-wrap.ai-falling-flash {
+      outline: 3px solid #f59e0b;
+      outline-offset: -3px;
+      animation: ai-falling-pulse 0.6s ease-in-out infinite alternate;
+    }
+    @keyframes ai-laying-pulse {
       from { outline-color: #ef4444; }
       to   { outline-color: #fca5a5; }
+    }
+    @keyframes ai-falling-pulse {
+      from { outline-color: #f59e0b; }
+      to   { outline-color: #fde68a; }
     }
   `;
   document.head.appendChild(style);

@@ -68,19 +68,19 @@ function initCaregiverSocket() {
     window.onAIFrame?.(data);
   });
 
-  // Fired by detection.py when best.pt detects a fall above threshold.
+  // Fired by detection.py for falling (warn) or laying down (critical).
+  caregiverSocket.on("posture_alert", (data) => {
+    window.onAIPostureAlert?.(data);
+  });
+
+  // Backward-compatible: laying-down alerts still use fall_alert from detection.py.
   caregiverSocket.on("fall_alert", (data) => {
-    window.onAIFallAlert?.(data);
-    // Also surface as a caregiver alert so the Alerts page picks it up.
-    window.prependAlert?.({
-      message: data.message || "Fall detected",
-      severity: "critical",
-      created_at: data.timestamp,
+    if (data.alert_type === "falling") return;
+    window.onAIPostureAlert?.({
+      ...data,
+      alert_type: data.alert_type || "laying_down",
+      severity: data.severity || "critical",
     });
-    window.CaregiverAPI?.showToast?.(
-      data.message || "⚠️ Fall detected!",
-      "danger",
-    );
   });
 
   // Fired when the backend IP camera stream drops or fails to open.

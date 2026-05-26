@@ -63,7 +63,7 @@ def _detection_loop(socketio, url: str):
     print(f"[AI] Stream opened. Starting inference loop...")
 
     CONF_THRESHOLD = 0.4
-    FRAME_SKIP = 4
+    FRAME_SKIP = 1
 
     frame_count = 0
 
@@ -83,10 +83,11 @@ def _detection_loop(socketio, url: str):
             continue
 
         # ── YOLOv8 inference ──────────────────────────────────────────────────
-        frame = cv2.resize(frame, (640, 640))
+        frame = cv2.resize(frame, (640, 480))
         results = model(frame, imgsz=320, verbose=False)[0]
 
-        fall_detected = False
+        falling_detected = False
+        laying_detected = False
         detections = []
 
         for box in results.boxes:
@@ -95,8 +96,18 @@ def _detection_loop(socketio, url: str):
             label = model.names[cls_id]
             x1, y1, x2, y2 = map(int, box.xyxy[0])
 
-            is_fall = "fall" in label.lower()
-            color = (0, 0, 255) if is_fall else (0, 255, 0)
+            label_lower = label.lower().replace(" ", "_")
+            is_falling = label_lower == "falling" or (
+                "fall" in label_lower and "lay" not in label_lower
+            )
+            is_laying = "lay" in label_lower or "lying" in label_lower
+
+            if is_laying:
+                color = (0, 0, 255)  # red — laying down
+            elif is_falling:
+                color = (0, 200, 255)  # yellow — falling
+            else:
+                color = (0, 255, 0)  # green — standing / other
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(
@@ -111,8 +122,10 @@ def _detection_loop(socketio, url: str):
 
             detections.append({"label": label, "confidence": round(conf, 3)})
 
-            if is_fall and conf >= CONF_THRESHOLD:
-                fall_detected = True
+            if is_falling and conf >= CONF_THRESHOLD:
+                falling_detected = True
+            if is_laying and conf >= CONF_THRESHOLD:
+                laying_detected = True
 
         # ── Encode frame → base64 JPEG ────────────────────────────────────────
         _, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 40])
@@ -124,23 +137,40 @@ def _detection_loop(socketio, url: str):
             {
                 "image": frame_b64,
                 "detections": detections,
-                "fall": fall_detected,
+                "falling": falling_detected,
+                "laying_down": laying_detected,
+                "fall": laying_detected or falling_detected,
                 "timestamp": time.time(),
             },
             namespace="/",
         )
 
-        if fall_detected:
+        if laying_detected:
             socketio.emit(
-                "fall_alert",
+                "posture_alert",
                 {
-                    "message": "⚠️ FALL DETECTED",
+                    "alert_type": "laying_down",
+                    "severity": "critical",
+                    "message": "🚨 LAYING DOWN DETECTED",
                     "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
                     "detections": detections,
                 },
                 namespace="/",
             )
-            print(f"[AI] 🚨 Fall detected! {detections}")
+            print(f"[AI] 🚨 Laying down detected! {detections}")
+        elif falling_detected:
+            socketio.emit(
+                "posture_alert",
+                {
+                    "alert_type": "falling",
+                    "severity": "warning",
+                    "message": "⚠️ FALLING DETECTED",
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "detections": detections,
+                },
+                namespace="/",
+            )
+            print(f"[AI] ⚠️ Falling detected! {detections}")
 
     cap.release()
     print("[AI] Detection loop stopped.")

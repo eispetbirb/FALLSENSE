@@ -372,6 +372,7 @@
 
 .status-badge.waiting { background: rgba(91,175,180,0.1); color: var(--teal-dark); }
 .status-badge.online  { background: rgba(46,158,99,0.1);  color: var(--green); }
+.status-badge.warning { background: rgba(217,135,15,0.12); color: var(--amber); }
 .status-badge.offline { background: rgba(217,79,79,0.1);  color: var(--red); }
 
 .btn-test-url {

@@ -14,9 +14,20 @@
   animation: fall-card-pulse 0.7s ease-in-out infinite alternate;
 }
 
+.fall-alert-card.triggered-warn {
+  border-color: rgba(217, 135, 15, 0.55);
+  box-shadow: 0 0 0 3px rgba(217, 135, 15, 0.08);
+  animation: fall-card-pulse-warn 0.7s ease-in-out infinite alternate;
+}
+
 @keyframes fall-card-pulse {
   from { box-shadow: 0 0 0 3px rgba(217,79,79,0.08); }
   to   { box-shadow: 0 0 0 6px rgba(217,79,79,0.14); }
+}
+
+@keyframes fall-card-pulse-warn {
+  from { box-shadow: 0 0 0 3px rgba(217,135,15,0.08); }
+  to   { box-shadow: 0 0 0 6px rgba(217,135,15,0.14); }
 }
 
 .fall-alert-header {
@@ -44,6 +55,11 @@
 .fall-alert-pill.active {
   background: rgba(217,79,79,0.12);
   color: var(--red);
+}
+
+.fall-alert-pill.active-warn {
+  background: rgba(217,135,15,0.12);
+  color: var(--amber);
 }
 
 /* No-event idle state */
@@ -91,6 +107,15 @@
 
 .fall-alert-banner.show { display: flex; }
 
+.fall-alert-banner.warn {
+  background: rgba(217,135,15,0.08);
+  border-color: rgba(217,135,15,0.25);
+}
+
+.fall-alert-banner.warn .fall-alert-banner-msg {
+  color: var(--amber);
+}
+
 .fall-alert-banner-icon {
   font-size: 18px;
   flex-shrink: 0;
@@ -110,13 +135,12 @@
   margin-top: 1px;
 }
 
-/* Event log list */
+/* Latest detection only — fixed, no scroll */
 .fall-event-log {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 160px;
-  overflow-y: auto;
+  gap: 0;
+  overflow: hidden;
 }
 
 .fall-event-item {
@@ -155,3 +179,11 @@
   color: var(--muted);
   white-space: nowrap;
 }
+
+.fall-event-item.warn {
+  background: rgba(217,135,15,0.05);
+  border-color: rgba(217,135,15,0.15);
+}
+
+.fall-event-item.warn .fall-event-dot { background: var(--amber); }
+.fall-event-item.warn .fall-event-text { color: var(--amber); }
