@@ -70,11 +70,6 @@ function initSocket() {
   // =========================
   // REALTIME EVENTS
   // =========================
-  socket.on("new_alert", (data) => {
-    console.log("🚨 Alert:", data);
-    if (typeof addAlert === "function") addAlert(data);
-  });
-
   socket.on("new_activity", (data) => {
     console.log("📜 Activity:", data);
     if (typeof addActivity === "function") addActivity(data);

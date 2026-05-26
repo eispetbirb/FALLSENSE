@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -60,25 +60,10 @@
           <div class="hero-left">
             <div class="eyebrow"><span></span> Security Operations Center</div>
             <h1>Welcome back, Admin</h1>
-            <p>System health, user management, alerts, and audit logs in one view.</p>
-          </div>
-          <div class="hero-stats">
-            <div class="hero-stat">
-              <div class="hero-stat-number" id="totalUsers">0</div>
-              <div class="hero-stat-label">Users</div>
-            </div>
-            <div class="hero-stat">
-              <div class="hero-stat-number hero-stat-alerts" id="totalAlerts">0</div>
-              <div class="hero-stat-label">Alerts</div>
-            </div>
-            <div class="hero-stat">
-              <div class="hero-stat-number hero-stat-failed" id="failedLogins">0</div>
-              <div class="hero-stat-label">Failed Logins</div>
-            </div>
-            <div class="hero-stat">
-              <div class="hero-stat-number hero-stat-locked" id="lockedUsers">0</div>
-              <div class="hero-stat-label">Locked</div>
-            </div>
+            <p>
+              System health, user management, alerts, and audit logs in one
+              view.
+            </p>
           </div>
         </div>
       </div>
@@ -94,10 +79,16 @@
             </svg>
           </div>
           <div class="stat-info">
-            <div class="stat-value" id="sc-users">0</div>
+            <div
+              class="stat-value"
+              id="sc-users"
+              data-summary-key="total_users"
+              aria-live="polite"
+            >
+              0
+            </div>
             <div class="stat-label">Total Users</div>
           </div>
-          <span class="stat-trend neu">Active</span>
         </div>
         <div class="stat-card">
           <div class="stat-icon red">
@@ -107,10 +98,16 @@
             </svg>
           </div>
           <div class="stat-info">
-            <div class="stat-value" id="sc-alerts">0</div>
+            <div
+              class="stat-value"
+              id="sc-alerts"
+              data-summary-key="total_alerts"
+              aria-live="polite"
+            >
+              0
+            </div>
             <div class="stat-label">Total Alerts</div>
           </div>
-          <span class="stat-trend down">↑ 3 today</span>
         </div>
         <div class="stat-card">
           <div class="stat-icon amber">
@@ -120,10 +117,16 @@
             </svg>
           </div>
           <div class="stat-info">
-            <div class="stat-value" id="sc-failed">0</div>
+            <div
+              class="stat-value"
+              id="sc-failed"
+              data-summary-key="failed_logins"
+              aria-live="polite"
+            >
+              0
+            </div>
             <div class="stat-label">Failed Logins</div>
           </div>
-          <span class="stat-trend down">↑ 2 new</span>
         </div>
         <div class="stat-card">
           <div class="stat-icon green">
@@ -132,25 +135,20 @@
             </svg>
           </div>
           <div class="stat-info">
-            <div class="stat-value" id="sc-locked">0</div>
+            <div
+              class="stat-value"
+              id="sc-locked"
+              data-summary-key="locked_users"
+              aria-live="polite"
+            >
+              0
+            </div>
             <div class="stat-label">Locked Users</div>
           </div>
-          <span class="stat-trend up">Secure</span>
         </div>
       </div>
 
       <div class="charts-row">
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">Alert Severity</div>
-              <div class="card-sub">Distribution by severity level</div>
-            </div>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="alertChart"></canvas>
-          </div>
-        </div>
         <div class="card">
           <div class="card-header">
             <div>
@@ -168,25 +166,20 @@
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title">Live Alerts</div>
-              <div class="card-sub">Real-time security events</div>
-            </div>
-            <span class="sev-pill critical">● Live</span>
-          </div>
-          <div class="feed-list" id="alerts"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <div>
               <div class="card-title">Activity Logs</div>
               <div class="card-sub">Recent system operations</div>
             </div>
-            <button type="button" class="btn btn-ghost btn-sm" id="refreshActivitiesButton">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              id="refreshActivitiesButton"
+            >
               <svg viewBox="0 0 24 24">
                 <polyline points="23 4 23 10 17 10" />
                 <polyline points="1 20 1 14 7 14" />
-                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                <path
+                  d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"
+                />
               </svg>
               Refresh
             </button>
@@ -246,9 +239,16 @@
             </div>
             <div>
               <label class="form-label">&nbsp;</label>
-              <button class="btn btn-teal" type="submit" id="userSaveButton" style="width: 100%">
+              <button
+                class="btn btn-teal"
+                type="submit"
+                id="userSaveButton"
+                style="width: 100%"
+              >
                 <svg viewBox="0 0 24 24">
-                  <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                  <path
+                    d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"
+                  />
                   <polyline points="17 21 17 13 7 13 7 21" />
                   <polyline points="7 3 7 8 15 8" />
                 </svg>
@@ -280,7 +280,9 @@
           <div class="card-header">
             <div>
               <div class="card-title">System Settings</div>
-              <div class="card-sub">Configure thresholds, sensitivity, and modules</div>
+              <div class="card-sub">
+                Configure thresholds, sensitivity, and modules
+              </div>
             </div>
           </div>
           <form id="systemConfigForm" class="settings-grid">
@@ -297,7 +299,9 @@
               />
             </div>
             <div class="settings-field">
-              <label class="form-label" for="alertSensitivity">Alert Sensitivity</label>
+              <label class="form-label" for="alertSensitivity"
+                >Alert Sensitivity</label
+              >
               <select id="alertSensitivity" class="form-select">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -308,9 +312,15 @@
               <label class="form-label">Enabled Modules</label>
               <div class="module-toggles" id="moduleToggles"></div>
             </div>
-            <button class="btn btn-teal" type="submit" style="width: 100%; justify-content: center">
+            <button
+              class="btn btn-teal"
+              type="submit"
+              style="width: 100%; justify-content: center"
+            >
               <svg viewBox="0 0 24 24">
-                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                <path
+                  d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"
+                />
                 <polyline points="17 21 17 13 7 13 7 21" />
                 <polyline points="7 3 7 8 15 8" />
               </svg>
@@ -326,7 +336,11 @@
               <div class="card-sub">Security events and system logs</div>
             </div>
             <div class="card-actions">
-              <button id="exportAuditCsvButton" class="btn btn-ghost btn-sm" type="button">
+              <button
+                id="exportAuditCsvButton"
+                class="btn btn-ghost btn-sm"
+                type="button"
+              >
                 <svg viewBox="0 0 24 24">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                   <polyline points="7 10 12 15 17 10" />
@@ -334,9 +348,15 @@
                 </svg>
                 CSV
               </button>
-              <button id="exportAuditPdfButton" class="btn btn-ghost btn-sm" type="button">
+              <button
+                id="exportAuditPdfButton"
+                class="btn btn-ghost btn-sm"
+                type="button"
+              >
                 <svg viewBox="0 0 24 24">
-                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <path
+                    d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                  />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
                 PDF
@@ -380,11 +400,13 @@
         window.location.href = "login.html";
       }
 
-      document.getElementById("adminLogoutButton")?.addEventListener("click", () => {
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("user_role");
-        window.location.href = "login.html";
-      });
+      document
+        .getElementById("adminLogoutButton")
+        ?.addEventListener("click", () => {
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("user_role");
+          window.location.href = "login.html";
+        });
 
       document
         .getElementById("refreshActivitiesButton")

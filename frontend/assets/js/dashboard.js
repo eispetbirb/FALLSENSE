@@ -80,6 +80,18 @@ function safeSet(id, value) {
   if (el) el.innerText = value;
 }
 
+let adminSummaryRefreshTimer = null;
+
+function scheduleSummaryRefresh(delay = 250) {
+  if (adminSummaryRefreshTimer) {
+    clearTimeout(adminSummaryRefreshTimer);
+  }
+
+  adminSummaryRefreshTimer = window.setTimeout(() => {
+    loadSummary().catch(() => {});
+  }, delay);
+}
+
 // =========================
 // LOGIN
 // =========================
@@ -166,14 +178,7 @@ async function handleCreateDemoAdmin() {
 // =========================
 // CHARTS
 // =========================
-let alertChart;
 let securityChart;
-let alertSeverityCounts = {
-  low: 0,
-  medium: 0,
-  high: 0,
-  critical: 0,
-};
 
 let activityTypeCounts = {
   login_success: 0,
@@ -191,10 +196,6 @@ const MODULE_LABELS = {
   audit_reporting: "Audit reporting",
   anomaly_detection: "Anomaly detection",
 };
-
-function getAlertsContainer() {
-  return document.getElementById("alerts");
-}
 
 function getActivitiesContainer() {
   return document.getElementById("activities");
@@ -237,14 +238,6 @@ function formatRoleLabel(role) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function severityFeedDot(severity) {
-  const value = normalizeSeverity(severity);
-  if (value === "critical") return "red";
-  if (value === "high") return "amber";
-  if (value === "low") return "green";
-  return "teal";
-}
-
 function activityFeedDot(activity) {
   const status = String(activity?.status || "success").toLowerCase();
   if (status !== "success" && status !== "processed") return "red";
@@ -257,17 +250,27 @@ function activityFeedDot(activity) {
 
 function syncAdminStatCards() {
   const pairs = [
-    ["totalUsers", "sc-users"],
-    ["totalAlerts", "sc-alerts"],
-    ["failedLogins", "sc-failed"],
-    ["lockedUsers", "sc-locked"],
+    ["sc-users", "totalUsers", "total_users"],
+    ["sc-alerts", "totalAlerts", "total_alerts"],
+    ["sc-failed", "failedLogins", "failed_logins"],
+    ["sc-locked", "lockedUsers", "locked_users"],
   ];
 
-  pairs.forEach(([sourceId, targetId]) => {
-    const source = document.getElementById(sourceId);
+  pairs.forEach(([targetId, camelKey, snakeKey]) => {
     const target = document.getElementById(targetId);
-    if (source && target) target.textContent = source.textContent;
+    if (!target) return;
+
+    const value =
+      window.adminSummaryCache?.[camelKey] ??
+      window.adminSummaryCache?.[snakeKey] ??
+      0;
+    target.textContent = String(value);
   });
+}
+
+function applyAdminSummary(summary = {}) {
+  window.adminSummaryCache = summary;
+  syncAdminStatCards();
 }
 
 function normalizeSeverity(value) {
@@ -303,21 +306,10 @@ function syncDoughnutChart(chart, labels, values) {
 }
 
 function refreshSecuritySummaryCards(delta = {}) {
-  const totalAlertsEl = document.getElementById("totalAlerts");
-  const failedLoginsEl = document.getElementById("failedLogins");
-  const lockedUsersEl = document.getElementById("lockedUsers");
-
-  if (typeof delta.total_alerts === "number" && totalAlertsEl) {
-    totalAlertsEl.innerText = String(delta.total_alerts);
-  }
-
-  if (typeof delta.failed_logins === "number" && failedLoginsEl) {
-    failedLoginsEl.innerText = String(delta.failed_logins);
-  }
-
-  if (typeof delta.locked_users === "number" && lockedUsersEl) {
-    lockedUsersEl.innerText = String(delta.locked_users);
-  }
+  window.adminSummaryCache = {
+    ...(window.adminSummaryCache || {}),
+    ...delta,
+  };
 
   syncAdminStatCards();
 }
@@ -424,30 +416,6 @@ function renderAuditReport(report = {}) {
   `;
 }
 
-function rebuildAlertSeverityCounts(alerts = []) {
-  alertSeverityCounts = {
-    low: 0,
-    medium: 0,
-    high: 0,
-    critical: 0,
-  };
-
-  alerts.forEach((alert) => {
-    bumpCount(alertSeverityCounts, normalizeSeverity(alert?.severity));
-  });
-
-  syncDoughnutChart(
-    alertChart,
-    ["Low", "Medium", "High", "Critical"],
-    [
-      alertSeverityCounts.low,
-      alertSeverityCounts.medium,
-      alertSeverityCounts.high,
-      alertSeverityCounts.critical,
-    ],
-  );
-}
-
 function rebuildActivityTypeCounts(activities = []) {
   activityTypeCounts = {
     login_success: 0,
@@ -465,25 +433,6 @@ function rebuildActivityTypeCounts(activities = []) {
     securityChart,
     Object.keys(activityTypeCounts),
     Object.values(activityTypeCounts),
-  );
-}
-
-function appendAlertRecord(alert) {
-  const container = getAlertsContainer();
-  const severity = normalizeSeverity(alert?.severity);
-  const title = `${alert?.type || "Alert"} — ${alert?.message || "New alert received"}`;
-
-  prependRecord(
-    container,
-    `
-      <div class="feed-item">
-        <div class="feed-dot ${severityFeedDot(severity)}"></div>
-        <div class="feed-body">
-          <div class="feed-title">${escapeHtml(title)} <span class="sev-pill ${severity}">${severity}</span></div>
-          <div class="feed-time">${escapeHtml(formatTime(alert?.created_at))}</div>
-        </div>
-      </div>
-    `,
   );
 }
 
@@ -506,30 +455,6 @@ function appendActivityRecord(activity) {
   );
 }
 
-function addAlert(alert) {
-  appendAlertRecord(alert);
-
-  const totalAlertsEl = document.getElementById("totalAlerts");
-  if (totalAlertsEl) {
-    totalAlertsEl.innerText = String(Number(totalAlertsEl.innerText || 0) + 1);
-  }
-  syncAdminStatCards();
-
-  const severity = normalizeSeverity(alert?.severity);
-  bumpCount(alertSeverityCounts, severity);
-
-  syncDoughnutChart(
-    alertChart,
-    ["Low", "Medium", "High", "Critical"],
-    [
-      alertSeverityCounts.low,
-      alertSeverityCounts.medium,
-      alertSeverityCounts.high,
-      alertSeverityCounts.critical,
-    ],
-  );
-}
-
 function addActivity(activity) {
   appendActivityRecord(activity);
 
@@ -543,21 +468,15 @@ function addActivity(activity) {
   );
 
   if (activity?.action === "failed_login") {
-    const failedLoginsEl = document.getElementById("failedLogins");
-    if (failedLoginsEl) {
-      failedLoginsEl.innerText = String(
-        Number(failedLoginsEl.innerText || 0) + 1,
-      );
-    }
+    window.adminSummaryCache = window.adminSummaryCache || {};
+    window.adminSummaryCache.failed_logins =
+      Number(window.adminSummaryCache.failed_logins || 0) + 1;
   }
 
   if (activity?.action === "login_blocked_locked_account") {
-    const lockedUsersEl = document.getElementById("lockedUsers");
-    if (lockedUsersEl) {
-      lockedUsersEl.innerText = String(
-        Number(lockedUsersEl.innerText || 0) + 1,
-      );
-    }
+    window.adminSummaryCache = window.adminSummaryCache || {};
+    window.adminSummaryCache.locked_users =
+      Number(window.adminSummaryCache.locked_users || 0) + 1;
   }
 
   syncAdminStatCards();
@@ -565,55 +484,8 @@ function addActivity(activity) {
   if (typeof loadAuditReport === "function") {
     loadAuditReport();
   }
-}
 
-function initAlertChart() {
-  const canvas = document.getElementById("alertChart");
-  if (!canvas) return;
-
-  const ctx = canvas.getContext("2d");
-
-  alertChart = new Chart(ctx, {
-    type: "doughnut",
-    data: {
-      labels: ["Low", "Medium", "High", "Critical"],
-      datasets: [
-        {
-          label: "Alerts by severity",
-          data: [
-            alertSeverityCounts.low,
-            alertSeverityCounts.medium,
-            alertSeverityCounts.high,
-            alertSeverityCounts.critical,
-          ],
-          backgroundColor: [
-            "rgba(46,158,99,0.75)",
-            "rgba(91,175,180,0.75)",
-            "rgba(217,135,15,0.75)",
-            "rgba(217,79,79,0.75)",
-          ],
-          borderColor: "#eaf5f6",
-          borderWidth: 3,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: "62%",
-      plugins: {
-        legend: {
-          position: "right",
-          labels: {
-            color: "#6a9094",
-            font: { family: "DM Sans", size: 12 },
-            boxWidth: 12,
-            padding: 14,
-          },
-        },
-      },
-    },
-  });
+  scheduleSummaryRefresh();
 }
 
 function initSecurityChart() {
@@ -666,41 +538,18 @@ function initSecurityChart() {
 // =========================
 async function loadSummary() {
   const res = await safeFetch(
-    `${DASHBOARD_BACKEND_URL}/api/admin/security-summary`,
-    getFetchOptions(),
+    `${DASHBOARD_BACKEND_URL}/api/admin/security-summary?t=${Date.now()}`,
+    {
+      ...getFetchOptions(),
+      cache: "no-store",
+    },
   );
 
   if (!res) return;
 
   const data = await res.json();
 
-  safeSet("totalUsers", data.total_users);
-  safeSet("totalAlerts", data.total_alerts);
-  safeSet("failedLogins", data.failed_logins);
-  safeSet("lockedUsers", data.locked_users);
-
-  refreshSecuritySummaryCards(data);
-  syncAdminStatCards();
-}
-
-async function loadAlerts() {
-  const res = await safeFetch(
-    `${DASHBOARD_BACKEND_URL}/api/admin/alerts`,
-    getFetchOptions(),
-  );
-
-  if (!res) return;
-
-  const alerts = await res.json();
-  const container = getAlertsContainer();
-
-  if (!container) return;
-
-  container.innerHTML = "";
-
-  rebuildAlertSeverityCounts(alerts);
-
-  alerts.slice(0, 25).forEach((alert) => appendAlertRecord(alert));
+  applyAdminSummary(data);
 }
 
 async function loadActivities() {
@@ -767,6 +616,7 @@ async function saveUser(event) {
   document.getElementById("userForm")?.reset();
   document.getElementById("userSaveButton").innerText = "Save User";
   await loadUsers();
+  await loadSummary();
 }
 
 async function deleteUser(userId) {
@@ -779,6 +629,7 @@ async function deleteUser(userId) {
   if (!res) return;
 
   await loadUsers();
+  await loadSummary();
 }
 
 async function toggleUserLock(userId, isLocked) {
@@ -791,6 +642,7 @@ async function toggleUserLock(userId, isLocked) {
   );
   if (!res) return;
   await loadUsers();
+  await loadSummary();
 }
 
 async function editUser(userId) {
@@ -864,18 +716,57 @@ async function loadAuditReport() {
   renderAuditReport(report);
 }
 
-function exportAuditCsv() {
-  window.open(
-    `${DASHBOARD_BACKEND_URL}/api/admin/audit-reports/export/csv`,
-    "_blank",
+function getDownloadFilename(response, fallbackName) {
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(
+    /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i,
   );
+  const rawName = match?.[1] || match?.[2];
+
+  if (!rawName) return fallbackName;
+
+  try {
+    return decodeURIComponent(rawName);
+  } catch {
+    return rawName;
+  }
+}
+
+async function downloadAuditReport(path, fallbackName) {
+  const res = await safeFetch(`${DASHBOARD_BACKEND_URL}${path}`, {
+    ...getFetchOptions(),
+    cache: "no-store",
+  });
+
+  if (!res) return;
+
+  const blob = await res.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = downloadUrl;
+  anchor.download = getDownloadFilename(res, fallbackName);
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(downloadUrl);
+}
+
+function exportAuditCsv() {
+  downloadAuditReport(
+    "/api/admin/audit-reports/export/csv",
+    "audit-report.csv",
+  ).catch((error) => {
+    alert(error.message || "Unable to download CSV report");
+  });
 }
 
 function exportAuditPdf() {
-  window.open(
-    `${DASHBOARD_BACKEND_URL}/api/admin/audit-reports/export/pdf`,
-    "_blank",
-  );
+  downloadAuditReport(
+    "/api/admin/audit-reports/export/pdf",
+    "audit-report.pdf",
+  ).catch((error) => {
+    alert(error.message || "Unable to download PDF report");
+  });
 }
 
 // =========================
@@ -886,12 +777,10 @@ function initApp() {
 
   showDashboard();
   loadSummary();
-  loadAlerts();
   loadActivities();
   loadUsers();
   loadSystemConfig();
   loadAuditReport();
-  initAlertChart();
   initSecurityChart();
 }
 
