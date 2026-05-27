@@ -24,7 +24,7 @@ function formatLoginErrorMessage(message) {
     timeZone: "Asia/Manila",
   }).format(lockUntil);
 
-  return `Account temporarily locked until ${formattedTime} (Philippine Time)`;
+  return `Account temporarily locked until ${formattedTime}`;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
