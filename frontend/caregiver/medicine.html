@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:wght@700;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/medicine.css" />
+  <link rel="stylesheet" href="assets/css/medication-reminder.css" />
 </head>
 <body>
 
@@ -166,8 +167,10 @@
               <input class="form-input" type="text" id="medDose" placeholder="e.g. 1 tablet" />
             </div>
             <div>
-              <label class="form-label">Patient ID</label>
-              <input class="form-input" type="text" id="medPatient" placeholder="e.g. patient-1234abcd" />
+              <label class="form-label">Patient</label>
+              <select class="form-input" id="medPatient">
+                <option value="">Loading patients...</option>
+              </select>
             </div>
           </div>
 
@@ -213,12 +216,12 @@
         </div>
 
         <!-- MED LIST -->
-        <div class="card">
-          <div class="card-header">
+        <div class="card med-list-card">
+          <div class="card-header med-list-header">
             <div class="card-title">All Medications</div>
             <span class="pill teal" id="medCount">0 added</span>
           </div>
-          <div id="medsList"></div>
+          <div id="medsList" class="meds-list"></div>
         </div>
       </div>
     </div>
@@ -238,6 +241,7 @@
     let selectedColor = COLORS[0];
     let selectedFreq = 'Daily';
     let reminderTimes = [];
+    let patientNameById = {};
 
     function toDateStr(d) {
       return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -258,6 +262,44 @@
       const payload = await window.CaregiverAPI.apiJson('/api/medications');
       schedules = Array.isArray(payload) ? payload : [];
       return schedules;
+    }
+
+    async function fetchPatients() {
+      const payload = await window.CaregiverAPI.apiJson('/api/patients/status');
+      const patients = Array.isArray(payload) ? payload : [];
+      patientNameById = patients.reduce((acc, item) => {
+        const id = String(item?.patient_id || '').trim();
+        const name = String(item?.patient_name || '').trim();
+        if (id) acc[id] = name || id;
+        return acc;
+      }, {});
+      renderPatientDropdown(patients);
+    }
+
+    function renderPatientDropdown(patients) {
+      const patientSelect = document.getElementById('medPatient');
+      if (!patientSelect) return;
+
+      if (!patients.length) {
+        patientSelect.innerHTML = '<option value="">No patients found</option>';
+        return;
+      }
+
+      patientSelect.innerHTML = `
+        <option value="">Select patient</option>
+        ${patients.map((patient) => {
+          const patientId = String(patient?.patient_id || '').trim();
+          const patientName = String(patient?.patient_name || '').trim();
+          if (!patientId) return '';
+          return `<option value="${patientId}">${patientName || patientId}</option>`;
+        }).join('')}
+      `;
+    }
+
+    function resolvePatientLabel(patientId) {
+      const id = String(patientId || '').trim();
+      if (!id) return 'Unknown patient';
+      return patientNameById[id] || id;
     }
 
     async function updateScheduleStatus(id, status) {
@@ -335,7 +377,7 @@
 
       if (!medicine_name) { toast('Enter medication name', 'error'); return; }
       if (!dosage) { toast('Enter dosage', 'error'); return; }
-      if (!patient_id) { toast('Enter patient id', 'error'); return; }
+      if (!patient_id) { toast('Select a patient', 'error'); return; }
 
       const times = reminderTimes.length ? [...reminderTimes] : ['08:00'];
 
@@ -546,7 +588,7 @@
             <div class="med-color" style="background:#5BAFB4"></div>
             <div class="med-info">
               <div class="med-name">${m.medicine_name}${m.dosage ? ' <span style="font-weight:400;color:var(--muted)">— ' + m.dosage + '</span>' : ''}</div>
-              <div class="med-time">${m.schedule_time ? m.schedule_time : ''}${m.patient_id ? ' · Patient ' + m.patient_id : ''}</div>
+              <div class="med-time">${m.schedule_time ? m.schedule_time : ''}${m.patient_id ? ' · ' + resolvePatientLabel(m.patient_id) : ''}</div>
             </div>
             <span class="med-status ${statusClass}">${statusEl}</span>
             ${(isToday || isPast) ? `
@@ -557,26 +599,44 @@
       }).join('');
     }
 
+    function statusPillClass(status) {
+      const normalized = String(status || 'pending').toLowerCase();
+      if (normalized === 'taken') return 'pill-green';
+      if (normalized === 'missed') return 'pill-red';
+      return 'pill-amber';
+    }
+
     function renderMedsList() {
       const el = document.getElementById('medsList');
       document.getElementById('medCount').textContent = schedules.length + ' schedules';
       if (!schedules.length) {
         el.innerHTML = `<div class="empty"><div class="empty-icon">📋</div>No medications added yet.</div>`; return;
       }
-      el.innerHTML = schedules.map(m => `
-        <div class="med-row">
-          <div class="med-row-color" style="background:#5BAFB4"></div>
-          <div class="med-row-info">
-            <div class="med-row-name">${m.medicine_name}${m.dosage ? ' <span style="font-weight:400;color:var(--muted)">— ' + m.dosage + '</span>' : ''}</div>
-            <div class="med-row-meta">${m.schedule_time ? m.schedule_time : ''}${m.patient_id ? ' · Patient ' + m.patient_id : ''}</div>
+      el.innerHTML = schedules.map(m => {
+        const status = String(m.status || 'pending').toLowerCase();
+        const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+        const metaParts = [
+          m.schedule_time || '',
+          m.patient_id ? resolvePatientLabel(m.patient_id) : '',
+        ].filter(Boolean);
+
+        return `
+        <article class="med-row">
+          <div class="med-row-main">
+            <div class="med-row-color" style="background:#5BAFB4" aria-hidden="true"></div>
+            <div class="med-row-info">
+              <div class="med-row-name">${m.medicine_name}${m.dosage ? ' <span class="med-row-dose">— ' + m.dosage + '</span>' : ''}</div>
+              <div class="med-row-meta">${metaParts.join(' · ')}</div>
+            </div>
           </div>
-          <span class="pill teal">${m.status || 'pending'}</span>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <button class="btn-ghost status-btn" data-id="${m.id}" data-status="taken" title="Mark taken">Taken</button>
-            <button class="btn-ghost status-btn" data-id="${m.id}" data-status="missed" title="Mark missed">Missed</button>
-            <button class="btn-ghost del-btn" data-id="${m.id}" title="Delete">Delete</button>
+          <span class="pill ${statusPillClass(status)} med-row-status">${statusLabel}</span>
+          <div class="med-row-actions">
+            <button type="button" class="btn-ghost status-btn" data-id="${m.id}" data-status="taken" title="Mark taken">Taken</button>
+            <button type="button" class="btn-ghost status-btn" data-id="${m.id}" data-status="missed" title="Mark missed">Missed</button>
+            <button type="button" class="btn-ghost del-btn" data-id="${m.id}" title="Delete">Delete</button>
           </div>
-        </div>`).join('');
+        </article>`;
+      }).join('');
     }
 
     function renderStats() {
@@ -610,6 +670,11 @@
     window.addEventListener('DOMContentLoaded', async () => {
       if (!window.CaregiverAPI?.requireCaregiverSession?.()) return;
       window.CaregiverAPI?.bindLogoutButtons?.();
+      window.MedicationReminder?.setPageRefreshHandler(async () => {
+        await fetchSchedules().catch(() => []);
+        renderAll();
+      });
+      await fetchPatients().catch(() => []);
       await fetchSchedules().catch(() => []);
       renderAll();
       window.initCaregiverSocket?.();
@@ -621,5 +686,6 @@
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="assets/js/api.js"></script>
   <script src="assets/js/socket.js"></script>
+  <script src="assets/js/medication-reminder.js"></script>
 </body>
 </html>

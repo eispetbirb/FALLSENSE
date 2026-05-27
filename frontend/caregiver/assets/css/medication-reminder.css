@@ -1,0 +1,185 @@
+/* Shared medication alarm modal for all caregiver pages */
+
+.med-alarm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(30, 51, 53, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.med-alarm-overlay.open {
+  display: flex;
+}
+
+.med-alarm-box {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  background: #ffffff;
+  border: 2px solid rgba(217, 135, 15, 0.45);
+  border-radius: 20px;
+  padding: 28px 32px;
+  box-shadow: 0 24px 60px rgba(217, 135, 15, 0.22);
+  overflow: hidden;
+  animation: medAlarmFadeUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes medAlarmFadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.med-alarm-pulse {
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle, rgba(217, 135, 15, 0.18) 0%, transparent 65%);
+  animation: medAlarmPulse 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes medAlarmPulse {
+  0%, 100% { transform: scale(0.95); opacity: 0.55; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+.med-alarm-icon {
+  position: relative;
+  z-index: 1;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(217, 135, 15, 0.14);
+  color: #d9870f;
+  animation: medAlarmShake 0.8s ease-in-out infinite;
+}
+
+.med-alarm-icon svg {
+  width: 30px;
+  height: 30px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes medAlarmShake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-4deg); }
+  75% { transform: rotate(4deg); }
+}
+
+.med-alarm-eyebrow {
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d9870f;
+  margin-bottom: 8px;
+}
+
+.med-alarm-title {
+  position: relative;
+  z-index: 1;
+  font-family: 'Fraunces', serif;
+  font-size: 24px;
+  line-height: 1.25;
+  color: #1e3335;
+  margin-bottom: 8px;
+}
+
+.med-alarm-desc {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  color: #6a9094;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.med-alarm-details {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 18px;
+}
+
+.med-alarm-card {
+  text-align: left;
+  background: #f2f9fa;
+  border: 1px solid rgba(91, 175, 180, 0.2);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.med-alarm-med-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e3335;
+  margin-bottom: 6px;
+}
+
+.med-alarm-meta {
+  font-size: 12px;
+  color: #6a9094;
+  line-height: 1.45;
+}
+
+.med-alarm-actions {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.btn-alarm {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s, opacity 0.15s;
+}
+
+.btn-alarm:hover {
+  transform: translateY(-1px);
+}
+
+.btn-alarm-taken {
+  background: #2e9e63;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(46, 158, 99, 0.25);
+}
+
+.btn-alarm-missed {
+  background: rgba(217, 79, 79, 0.12);
+  color: #d94f4f;
+  border: 1.5px solid rgba(217, 79, 79, 0.35);
+}
+
+.btn-alarm-snooze {
+  background: #f2f9fa;
+  color: #2d4a4d;
+  border: 1.5px solid rgba(91, 175, 180, 0.35);
+}
+
+@media (min-width: 640px) {
+  .med-alarm-actions {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
