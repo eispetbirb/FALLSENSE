@@ -33,6 +33,12 @@ function initCaregiverSocket() {
   });
 
   caregiverSocket.on("patient_status_updated", (payload) => {
+    if (payload?.deleted) {
+      window.removePatientStatus?.(payload);
+      window.CaregiverAPI?.showToast?.("Patient removed", "warning");
+      return;
+    }
+
     window.upsertPatientStatus?.(payload);
     window.CaregiverAPI?.showToast?.(
       "Patient monitoring state updated",

@@ -130,12 +130,25 @@ async function apiJson(path, options = {}) {
   }
 
   const contentType = response.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) {
-    return response;
+  if (!response.ok) {
+    let errorMessage = response.statusText || "Request failed";
+
+    if (contentType.includes("application/json")) {
+      const payload = await response.json().catch(() => ({}));
+      errorMessage = payload.message || payload.error || errorMessage;
+    } else {
+      const responseText = await response.text().catch(() => "");
+      errorMessage = responseText.trim() || errorMessage;
+    }
+
+    throw new Error(errorMessage);
   }
 
-  const payload = await response.json();
-  return response.ok ? payload : Promise.reject(payload);
+  if (!contentType.includes("application/json")) {
+    return response.text();
+  }
+
+  return response.json();
 }
 
 function formatDateTime(value) {

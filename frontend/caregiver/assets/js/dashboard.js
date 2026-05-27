@@ -6,6 +6,7 @@ const caregiverState = {
 };
 
 let pendingQuickAction = null;
+let pendingPatientEdit = null;
 
 function openOverlayModal(id) {
   const overlay = document.getElementById(id);
@@ -91,6 +92,46 @@ function patientStatusLabel(patient) {
   if (patient.emergency_status) return "SOS Active";
   if (!patient.online) return "Offline";
   return patient.activity_state || "Stable";
+}
+
+function patientActionButtons(patient) {
+  return `
+    <div class="patient-actions">
+      <button
+        type="button"
+        class="btn-chip primary"
+        data-patient-action="edit"
+        data-patient-id="${patient.patient_id}"
+      >
+        Edit
+      </button>
+      <button
+        type="button"
+        class="btn-chip warn"
+        data-patient-action="remove"
+        data-patient-id="${patient.patient_id}"
+      >
+        Remove
+      </button>
+    </div>
+  `;
+}
+
+function findPatientById(patientId) {
+  return caregiverState.patients.find(
+    (patient) => patient.patient_id === patientId || patient.id === patientId,
+  );
+}
+
+function removePatientStatus(payload) {
+  const patientId = payload?.patient_id || payload?.id;
+  if (!patientId) return;
+
+  const nextPatients = caregiverState.patients.filter(
+    (patient) => patient.patient_id !== patientId && patient.id !== patientId,
+  );
+
+  renderPatientStatuses(nextPatients);
 }
 
 function alertSeverityClass(severity) {
@@ -217,6 +258,7 @@ function renderPatientStatuses(patients = []) {
               <div class="vital-value">${window.CaregiverAPI.formatDateTime(patient.last_activity_at)}</div>
             </div>
           </div>
+          ${patientActionButtons(patient)}
         </article>
       `;
     })
@@ -287,6 +329,105 @@ function bindAddPatientModal() {
     } finally {
       window.CaregiverAPI.setLoadingState(submitButton, false, "Save patient");
     }
+  });
+}
+
+function openPatientEditModal(patient) {
+  const modal = document.getElementById("editPatientModal");
+  const idInput = document.getElementById("patientEditId");
+  const nameInput = document.getElementById("patientEditNameInput");
+  const roomInput = document.getElementById("patientEditRoomInput");
+  const title = document.getElementById("patientEditModalTitle");
+
+  if (!modal || !idInput || !nameInput || !roomInput) {
+    return;
+  }
+
+  pendingPatientEdit = patient;
+  idInput.value = patient.patient_id || patient.id || "";
+  nameInput.value = patient.patient_name || "";
+  roomInput.value = patient.room_label || "";
+
+  if (title) {
+    title.textContent = `Edit ${patient.patient_name || "Patient"}`;
+  }
+
+  openOverlayModal("editPatientModal");
+}
+
+function bindEditPatientModal() {
+  const form = document.getElementById("editPatientForm");
+  const submitButton = document.getElementById("editPatientSubmitButton");
+  const removeButton = document.getElementById("editPatientRemoveButton");
+  const idInput = document.getElementById("patientEditId");
+  const nameInput = document.getElementById("patientEditNameInput");
+  const roomInput = document.getElementById("patientEditRoomInput");
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const patientId = idInput?.value?.trim();
+    const patient_name = nameInput?.value?.trim() || "";
+    const room_label = roomInput?.value?.trim() || "";
+
+    if (!patientId || !patient_name) {
+      window.CaregiverAPI.showToast("Patient name is required", "error");
+      return;
+    }
+
+    try {
+      window.CaregiverAPI.setLoadingState(
+        submitButton,
+        true,
+        "Saving changes...",
+      );
+      const updated = await window.CaregiverAPI.apiJson(
+        `/api/patients/${patientId}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ patient_name, room_label }),
+        },
+      );
+
+      if (updated) {
+        window.CaregiverAPI.showToast("Patient updated", "success");
+        closeOverlayModal("editPatientModal");
+        await refreshDashboard();
+      }
+    } catch (error) {
+      window.CaregiverAPI.showToast(
+        error?.message || "Unable to update patient",
+        "error",
+      );
+    } finally {
+      window.CaregiverAPI.setLoadingState(submitButton, false, "Save changes");
+    }
+  });
+
+  removeButton?.addEventListener("click", () => {
+    const patientId = idInput?.value?.trim();
+    const patientName = nameInput?.value?.trim() || "this patient";
+
+    if (!patientId) return;
+
+    closeOverlayModal("editPatientModal");
+    openQuickActionModal(
+      `Remove ${patientName}? This will also clear linked schedules, camera status, and incident records.`,
+      async () => {
+        try {
+          await window.CaregiverAPI.apiJson(`/api/patients/${patientId}`, {
+            method: "DELETE",
+          });
+          window.CaregiverAPI.showToast("Patient removed", "warning");
+          await refreshDashboard();
+        } catch (error) {
+          window.CaregiverAPI.showToast(
+            error?.message || "Unable to remove patient",
+            "error",
+          );
+        }
+      },
+    );
   });
 }
 
@@ -387,7 +528,8 @@ function renderMedications(medications = []) {
 function cameraPillClass(health = "") {
   const normalized = String(health || "offline").toLowerCase();
   if (["online", "active", "normal"].includes(normalized)) return "green";
-  if (["warning", "pending", "reconnecting"].includes(normalized)) return "amber";
+  if (["warning", "pending", "reconnecting"].includes(normalized))
+    return "amber";
   return "red";
 }
 
@@ -497,6 +639,44 @@ function openQuickActionModal(message, callback) {
 
 function bindDashboardEvents() {
   document.addEventListener("click", async (event) => {
+    const patientButton = event.target.closest("[data-patient-action]");
+    if (patientButton) {
+      const patientId = patientButton.dataset.patientId;
+      const action = patientButton.dataset.patientAction;
+      const patient = findPatientById(patientId);
+
+      if (!patient) {
+        window.CaregiverAPI.showToast("Patient not found", "error");
+        return;
+      }
+
+      if (action === "edit") {
+        openPatientEditModal(patient);
+        return;
+      }
+
+      if (action === "remove") {
+        openQuickActionModal(
+          `Remove ${patient.patient_name}? This will also clear linked schedules, camera status, and incident records.`,
+          async () => {
+            try {
+              await window.CaregiverAPI.apiJson(`/api/patients/${patientId}`, {
+                method: "DELETE",
+              });
+              window.CaregiverAPI.showToast("Patient removed", "warning");
+              await refreshDashboard();
+            } catch (error) {
+              window.CaregiverAPI.showToast(
+                error?.message || "Unable to remove patient",
+                "error",
+              );
+            }
+          },
+        );
+      }
+      return;
+    }
+
     const alertButton = event.target.closest("[data-alert-action]");
     if (alertButton) {
       const alertId = alertButton.dataset.alertId;
@@ -546,6 +726,11 @@ function bindDashboardEvents() {
 
 function upsertPatientStatus(payload) {
   if (!payload) return;
+  if (payload.deleted) {
+    removePatientStatus(payload);
+    return;
+  }
+
   const existing = [...caregiverState.patients];
   const index = existing.findIndex(
     (patient) =>
@@ -563,6 +748,7 @@ function upsertPatientStatus(payload) {
 
 window.renderPatientStatuses = renderPatientStatuses;
 window.upsertPatientStatus = upsertPatientStatus;
+window.removePatientStatus = removePatientStatus;
 window.prependAlert = prependAlert;
 window.renderAlerts = renderAlerts;
 window.renderMedications = renderMedications;
@@ -576,6 +762,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   bindOverlayModals();
   bindNavModal();
   bindAddPatientModal();
+  bindEditPatientModal();
   bindDashboardEvents();
   await refreshDashboard();
   window.initCaregiverSocket?.();

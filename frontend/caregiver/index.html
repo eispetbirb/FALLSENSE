@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -19,7 +19,10 @@
           class="brand-logo"
           src="assets/logo.png"
           alt="FallSense – Elderly Monitor"
-          onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+          onerror="
+            this.style.display = 'none';
+            this.nextElementSibling.style.display = 'block';
+          "
         />
         <span class="brand-text" style="display: none">FallSense</span>
       </a>
@@ -105,12 +108,14 @@
               Reports
             </a>
           </li>
-          <li><a href="medicine.html">
-            <svg viewBox="0 0 24 24">
-              <path d="M19 9h-2V7a7 7 0 10-14 0v2H1v13h18V9z"/>
-              <line x1="10" y1="13" x2="10" y2="17"/>
-              <line x1="8" y1="15" x2="12" y2="15"/>
-            </svg>Medications</a>
+          <li>
+            <a href="medicine.html">
+              <svg viewBox="0 0 24 24">
+                <path d="M19 9h-2V7a7 7 0 10-14 0v2H1v13h18V9z" />
+                <line x1="10" y1="13" x2="10" y2="17" />
+                <line x1="8" y1="15" x2="12" y2="15" /></svg
+              >Medications</a
+            >
           </li>
         </ul>
 
@@ -236,11 +241,7 @@
                 Use the controls below to react quickly during an incident.
               </div>
             </div>
-            <button
-              type="button"
-              class="btn-link"
-              data-quick-action="refresh"
-            >
+            <button type="button" class="btn-link" data-quick-action="refresh">
               Refresh state
             </button>
           </div>
@@ -250,7 +251,7 @@
               type="button"
               class="action-btn primary"
               data-quick-action="monitor"
-              onclick="window.location.href='monitoring.html'"
+              onclick="window.location.href = 'monitoring.html'"
             >
               <svg viewBox="0 0 24 24">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -269,13 +270,13 @@
             <button
               type="button"
               class="action-btn"
-              onclick="window.location.href='medicine.html'"
+              onclick="window.location.href = 'medicine.html'"
             >
               <svg viewBox="0 0 24 24">
-                <path d="M10 2h4a2 2 0 012 2v3h-2V4h-4v3H8V4a2 2 0 012-2z"/>
-                <rect x="7" y="7" width="10" height="15" rx="2"/>
-                <path d="M12 11v6"/>
-                <path d="M9.5 13.5h5"/>
+                <path d="M10 2h4a2 2 0 012 2v3h-2V4h-4v3H8V4a2 2 0 012-2z" />
+                <rect x="7" y="7" width="10" height="15" rx="2" />
+                <path d="M12 11v6" />
+                <path d="M9.5 13.5h5" />
               </svg>
               Set medicine reminder
             </button>
@@ -354,7 +355,11 @@
           >
             Cancel
           </button>
-          <button type="button" class="btn-primary" id="quickActionConfirmButton">
+          <button
+            type="button"
+            class="btn-primary"
+            id="quickActionConfirmButton"
+          >
             Confirm
           </button>
         </div>
@@ -376,7 +381,9 @@
         </div>
         <form id="addPatientForm">
           <div class="modal-field">
-            <label class="modal-label" for="patientNameInput">Patient Name</label>
+            <label class="modal-label" for="patientNameInput"
+              >Patient Name</label
+            >
             <input
               class="modal-input"
               id="patientNameInput"
@@ -403,8 +410,80 @@
             >
               Cancel
             </button>
-            <button type="submit" class="btn-primary" id="addPatientSubmitButton">
+            <button
+              type="submit"
+              class="btn-primary"
+              id="addPatientSubmitButton"
+            >
               Save patient
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="editPatientModal" aria-hidden="true">
+      <div class="modal-box">
+        <div class="modal-header">
+          <div class="modal-title" id="patientEditModalTitle">Edit Patient</div>
+          <button
+            type="button"
+            class="modal-close"
+            data-modal-close="editPatientModal"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <form id="editPatientForm">
+          <input type="hidden" id="patientEditId" />
+          <div class="modal-field">
+            <label class="modal-label" for="patientEditNameInput"
+              >Patient Name</label
+            >
+            <input
+              class="modal-input"
+              id="patientEditNameInput"
+              type="text"
+              placeholder="Enter patient name"
+              required
+            />
+          </div>
+          <div class="modal-field">
+            <label class="modal-label" for="patientEditRoomInput"
+              >Room Label</label
+            >
+            <input
+              class="modal-input"
+              id="patientEditRoomInput"
+              type="text"
+              placeholder="Room 101"
+            />
+          </div>
+          <div class="modal-hint">
+            Update the patient's display details or remove them if needed.
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn-cancel"
+              data-modal-close="editPatientModal"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-cancel"
+              id="editPatientRemoveButton"
+            >
+              Remove patient
+            </button>
+            <button
+              type="submit"
+              class="btn-primary"
+              id="editPatientSubmitButton"
+            >
+              Save changes
             </button>
           </div>
         </form>
