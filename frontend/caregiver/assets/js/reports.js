@@ -4,6 +4,24 @@ const reportsState = {
   total: 0,
 };
 
+let lastFilteredIncidents = [];
+let patientNameById = {};
+
+async function loadPatientNameMap() {
+  const statuses = await window.CaregiverAPI.apiJson("/api/patients/status");
+  if (!Array.isArray(statuses)) {
+    patientNameById = {};
+    return;
+  }
+
+  patientNameById = statuses.reduce((acc, item) => {
+    const id = String(item?.patient_id || "").trim();
+    const name = String(item?.patient_name || "").trim();
+    if (id) acc[id] = name || id;
+    return acc;
+  }, {});
+}
+
 function typeBadgeClass(type) {
   const normalized = String(type || "").toLowerCase();
   if (normalized.includes("fall")) return "fall";
@@ -25,6 +43,59 @@ function severityBadgeClass(severity) {
 
 function statusBadgeClass(resolved) {
   return resolved ? "resolved" : "pending";
+}
+
+function normalizeIncidentLogEntry(entry) {
+  const meta = entry?.meta || {};
+  const status = String(entry?.status || "").toLowerCase();
+  const detections = Array.isArray(meta.detections) ? meta.detections : [];
+  const topDetection = detections[0] || null;
+  const topLabel = topDetection?.label ? String(topDetection.label) : "";
+  const topConfidence = Number(topDetection?.confidence);
+  const confidenceText = Number.isFinite(topConfidence)
+    ? `${Math.round(topConfidence * 100)}%`
+    : "";
+  const aiDetails = topLabel
+    ? `${topLabel}${confidenceText ? ` (${confidenceText})` : ""}`
+    : "";
+  const summaryText = [meta.summary, aiDetails].filter(Boolean).join(" | ");
+
+  return {
+    id: entry?.id,
+    patient_id: meta.patient_id || "—",
+    patient_name: patientNameById[meta.patient_id] || `Patient ${meta.patient_id || "—"}`,
+    incident_type: entry?.label || "Incident",
+    severity: entry?.severity || "medium",
+    summary: summaryText || "—",
+    resolved: status === "resolved",
+    occurred_at: entry?.created_at,
+    ai_source: meta.source || "",
+    ai_trigger: meta.trigger || "",
+    ai_detections: detections,
+  };
+}
+
+function applyIncidentFilters(items) {
+  const startDate = document.getElementById("incidentStartDate")?.value || "";
+  const endDate = document.getElementById("incidentEndDate")?.value || "";
+  const severityFilter =
+    document.getElementById("incidentSeverityFilter")?.value || "";
+  const typeFilter = document.getElementById("incidentTypeFilter")?.value || "";
+
+  const startTime = startDate ? new Date(`${startDate}T00:00:00`) : null;
+  const endTime = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
+
+  return items.filter((item) => {
+    const occurredAt = item?.occurred_at ? new Date(item.occurred_at) : null;
+    const normalizedSeverity = String(item?.severity || "").toLowerCase();
+    const normalizedType = String(item?.incident_type || "").toLowerCase();
+
+    if (severityFilter && normalizedSeverity !== severityFilter) return false;
+    if (typeFilter && normalizedType !== typeFilter) return false;
+    if (startTime && occurredAt && occurredAt < startTime) return false;
+    if (endTime && occurredAt && occurredAt > endTime) return false;
+    return true;
+  });
 }
 
 function updateIncidentSummaryStats(items, total) {
@@ -80,6 +151,7 @@ function renderIncidentReports(payload) {
       const statusClass = statusBadgeClass(item.resolved);
       const statusLabel = item.resolved ? "Resolved" : "Open";
       const patientId = item.patient_id || "—";
+      const patientName = item.patient_name || `Patient ${patientId}`;
 
       return `
         <tr>
@@ -88,7 +160,7 @@ function renderIncidentReports(payload) {
             <div class="patient-cell">
               <div class="patient-avatar-sm">•</div>
               <div>
-                <div class="patient-name-sm">Patient ${patientId}</div>
+                <div class="patient-name-sm">${patientName}</div>
                 <div class="patient-room-sm">ID ${patientId}</div>
               </div>
             </div>
@@ -108,45 +180,79 @@ function renderIncidentReports(payload) {
 }
 
 async function refreshIncidents() {
-  const startDate = document.getElementById("incidentStartDate")?.value || "";
-  const endDate = document.getElementById("incidentEndDate")?.value || "";
-  const severity =
-    document.getElementById("incidentSeverityFilter")?.value || "";
-  const type = document.getElementById("incidentTypeFilter")?.value || "";
-
-  const params = new URLSearchParams();
-  if (startDate) params.set("start_date", startDate);
-  if (endDate) params.set("end_date", endDate);
-  if (severity) params.set("severity", severity);
-  if (type) params.set("type", type);
-
+  await loadPatientNameMap();
   const payload = await window.CaregiverAPI.apiJson(
-    `/api/reports/incidents${params.toString() ? `?${params.toString()}` : ""}`,
+    "/api/logs?type=incident&page=1&page_size=250",
   );
-  if (payload) renderIncidentReports(payload);
+  if (!payload) return;
+
+  const normalizedItems = (payload.items || []).map(normalizeIncidentLogEntry);
+  const filteredItems = applyIncidentFilters(normalizedItems);
+  lastFilteredIncidents = filteredItems;
+  renderIncidentReports({
+    items: filteredItems,
+    total: filteredItems.length,
+  });
 }
 
 async function exportIncidentCsv() {
-  const response = await window.CaregiverAPI.apiFetch(
-    "/api/reports/incidents?format=csv",
-  );
-  if (!response) return;
+  if (!lastFilteredIncidents.length) {
+    window.CaregiverAPI.showToast("No AI incident logs to export", "warning");
+    return;
+  }
 
-  const blob = await response.blob();
+  const csvEscape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const headers = [
+    "id",
+    "patient_id",
+    "incident_type",
+    "severity",
+    "summary",
+    "occurred_at",
+    "resolved",
+  ];
+  const lines = [
+    headers.join(","),
+    ...lastFilteredIncidents.map((item) =>
+      [
+        item.id,
+        item.patient_id,
+        item.incident_type,
+        item.severity,
+        item.summary,
+        item.occurred_at,
+        item.resolved,
+      ]
+        .map(csvEscape)
+        .join(","),
+    ),
+  ];
+
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "incident-reports.csv";
+  link.download = "ai-incident-logs.csv";
   link.click();
   URL.revokeObjectURL(url);
-  window.CaregiverAPI.showToast("CSV export downloaded", "success");
+  window.CaregiverAPI.showToast("AI incident logs CSV downloaded", "success");
 }
 
 async function downloadIncidentStructure() {
-  const payload = await window.CaregiverAPI.apiJson(
-    "/api/reports/incidents?format=pdf-structure",
-  );
-  if (!payload) return;
+  const payload = {
+    title: "AI Incident Logs",
+    generated_at: new Date().toISOString(),
+    columns: [
+      "id",
+      "patient_id",
+      "incident_type",
+      "severity",
+      "summary",
+      "occurred_at",
+      "resolved",
+    ],
+    rows: lastFilteredIncidents,
+  };
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
@@ -154,10 +260,10 @@ async function downloadIncidentStructure() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "incident-reports-structure.json";
+  link.download = "ai-incident-logs-structure.json";
   link.click();
   URL.revokeObjectURL(url);
-  window.CaregiverAPI.showToast("PDF structure downloaded", "success");
+  window.CaregiverAPI.showToast("AI incident log structure downloaded", "success");
 }
 
 function bindReportsNav() {

@@ -10,6 +10,8 @@ import base64
 import time
 from ultralytics import YOLO
 
+from app.services.caregiver_service import create_incident_report
+
 # ── Absolute path to best.pt (backend/best.pt) ───────────────────────────────
 # __file__ = backend/app/detection.py  →  parent = backend/app  →  parent = backend
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,6 +31,9 @@ print(f"[AI] Model loaded. Classes: {model.names}")
 _thread = None
 _running = False
 _camera_url = None
+_active_patient_id = None
+_ALERT_COOLDOWN_SECONDS = 12
+_last_alert_by_key = {}
 
 
 def _build_url(ip: str) -> str:
@@ -47,7 +52,47 @@ def _build_url(ip: str) -> str:
     return f"http://{ip}/video"
 
 
-def _detection_loop(socketio, url: str):
+def _normalize_incident_severity(raw_severity: str) -> str:
+    normalized = str(raw_severity or "").strip().lower()
+    if normalized in {"critical", "high", "medium", "low"}:
+        return normalized
+    if normalized in {"warning", "warn"}:
+        return "high"
+    return "medium"
+
+
+def _should_store_alert(patient_id: str, alert_type: str) -> bool:
+    key = f"{patient_id}:{alert_type}"
+    now = time.time()
+    previous = _last_alert_by_key.get(key, 0)
+    if now - previous < _ALERT_COOLDOWN_SECONDS:
+        return False
+    _last_alert_by_key[key] = now
+    return True
+
+
+def _persist_ai_alert(flask_app, patient_id: str, alert_payload: dict):
+    if not flask_app or not patient_id:
+        return None
+
+    alert_type = str(alert_payload.get("alert_type") or "incident").strip().lower()
+    if not _should_store_alert(patient_id, alert_type):
+        return None
+
+    severity = _normalize_incident_severity(alert_payload.get("severity"))
+    message = str(alert_payload.get("message") or "AI incident detected").strip()
+    with flask_app.app_context():
+        report = create_incident_report(
+            patient_id=patient_id,
+            incident_type=alert_type,
+            severity=severity,
+            summary=message,
+            payload=alert_payload,
+        )
+        return report.id
+
+
+def _detection_loop(socketio, url: str, flask_app=None, patient_id=None):
     global _running
 
     print(f"[AI] Connecting to stream: {url}")
@@ -146,32 +191,40 @@ def _detection_loop(socketio, url: str):
         )
 
         if laying_detected:
+            alert_payload = {
+                "source": "ai_pose_detector",
+                "alert_type": "laying_down",
+                "trigger": "laying_down",
+                "severity": "critical",
+                "message": "LAYING DOWN DETECTED",
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "detections": detections,
+            }
+            report_id = _persist_ai_alert(flask_app, patient_id, alert_payload)
+            if report_id:
+                alert_payload["report_id"] = report_id
             socketio.emit(
                 "posture_alert",
-                {
-                    "source": "ai_pose_detector",
-                    "alert_type": "laying_down",
-                    "trigger": "laying_down",
-                    "severity": "critical",
-                    "message": "🚨 LAYING DOWN DETECTED",
-                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "detections": detections,
-                },
+                alert_payload,
                 namespace="/",
             )
             print(f"[AI] 🚨 Laying down detected! {detections}")
         elif falling_detected:
+            alert_payload = {
+                "source": "ai_pose_detector",
+                "alert_type": "falling",
+                "trigger": "falling",
+                "severity": "warning",
+                "message": "FALLING DETECTED",
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "detections": detections,
+            }
+            report_id = _persist_ai_alert(flask_app, patient_id, alert_payload)
+            if report_id:
+                alert_payload["report_id"] = report_id
             socketio.emit(
                 "posture_alert",
-                {
-                    "source": "ai_pose_detector",
-                    "alert_type": "falling",
-                    "trigger": "falling",
-                    "severity": "warning",
-                    "message": "⚠️ FALLING DETECTED",
-                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "detections": detections,
-                },
+                alert_payload,
                 namespace="/",
             )
             print(f"[AI] ⚠️ Falling detected! {detections}")
@@ -182,19 +235,20 @@ def _detection_loop(socketio, url: str):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def start_stream(socketio, ip: str):
-    global _thread, _running, _camera_url
+def start_stream(socketio, ip: str, flask_app=None, patient_id=None):
+    global _thread, _running, _camera_url, _active_patient_id
 
     if _running:
         stop_stream()
         time.sleep(0.5)
 
     _camera_url = _build_url(ip)
+    _active_patient_id = (patient_id or "").strip() or None
     _running = True
 
     _thread = threading.Thread(
         target=_detection_loop,
-        args=(socketio, _camera_url),
+        args=(socketio, _camera_url, flask_app, _active_patient_id),
         daemon=True,
         name="ai-detection-thread",
     )
@@ -204,8 +258,9 @@ def start_stream(socketio, ip: str):
 
 
 def stop_stream():
-    global _running
+    global _running, _active_patient_id
     _running = False
+    _active_patient_id = None
     return {"status": "stopped"}
 
 
@@ -213,4 +268,5 @@ def get_status():
     return {
         "running": _running,
         "url": _camera_url,
+        "patient_id": _active_patient_id,
     }

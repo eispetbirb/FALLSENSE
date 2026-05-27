@@ -3,7 +3,7 @@ from datetime import datetime
 from io import StringIO
 import uuid
 
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity
 
 from app.extensions import db
@@ -124,7 +124,15 @@ def serialize_log_entry(entry, entry_type):
         "status": "resolved" if entry.resolved else "open",
         "severity": entry.severity,
         "created_at": entry.occurred_at.isoformat() if entry.occurred_at else None,
-        "meta": {"patient_id": entry.patient_id, "summary": entry.summary},
+        "meta": {
+            "patient_id": entry.patient_id,
+            "summary": entry.summary,
+            "source": (entry.export_payload or {}).get("source"),
+            "trigger": (entry.export_payload or {}).get("trigger"),
+            "alert_type": (entry.export_payload or {}).get("alert_type"),
+            "detections": (entry.export_payload or {}).get("detections") or [],
+            "export_payload": entry.export_payload or {},
+        },
     }
 
 
@@ -620,7 +628,12 @@ def stream_start():
             patient.camera_status = "online"
             db.session.commit()
 
-    result = start_stream(socketio, ip)
+    result = start_stream(
+        socketio,
+        ip,
+        flask_app=current_app._get_current_object(),
+        patient_id=patient_id,
+    )
     print(f"[AI] stream/start called — {result}")
     return jsonify(result)
 
