@@ -270,7 +270,14 @@ def delete_patient(patient_id):
 @caregiver_bp.route("/alerts", methods=["GET"])
 @role_required(["caregiver"])
 def get_alerts():
-    alerts = Alert.query.order_by(Alert.created_at.desc()).limit(200).all()
+    caregiver_id = get_jwt_identity()
+    alerts = (
+        Alert.query
+        .filter((Alert.user_id == caregiver_id) | (Alert.user_id.is_(None)))
+        .order_by(Alert.created_at.desc())
+        .limit(200)
+        .all()
+    )
     return jsonify([serialize_alert(alert) for alert in alerts])
 
 
@@ -282,6 +289,9 @@ def acknowledge_alert_route(alert_id):
         return jsonify({"message": "Alert not found"}), 404
 
     caregiver_id = get_jwt_identity()
+    if alert.user_id and alert.user_id != caregiver_id:
+        return jsonify({"message": "Alert not found or not owned by you"}), 403
+
     acknowledge_alert(alert, caregiver_id)
     return jsonify(serialize_alert(alert))
 
@@ -294,6 +304,9 @@ def resolve_alert_route(alert_id):
         return jsonify({"message": "Alert not found"}), 404
 
     caregiver_id = get_jwt_identity()
+    if alert.user_id and alert.user_id != caregiver_id:
+        return jsonify({"message": "Alert not found or not owned by you"}), 403
+
     resolve_alert(alert, caregiver_id)
     return jsonify(serialize_alert(alert))
 

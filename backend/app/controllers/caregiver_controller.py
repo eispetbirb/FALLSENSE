@@ -21,6 +21,8 @@ class CaregiverController:
 
     @staticmethod
     def alert_feed():
+        # Keep the controller aligned with the caregiver route: only alerts owned by the caregiver.
+        # Caller is expected to filter or pass the caregiver_id at the route layer.
         return [
             {
                 "id": alert.id,

@@ -3,6 +3,39 @@ const alertsPageState = {
   filter: "all",
 };
 
+const DISMISSED_KEY = "dismissed_alerts_v1";
+
+function loadDismissedAlerts() {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY) || "[]";
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) return new Set(arr);
+  } catch (err) {
+    // ignore
+  }
+  return new Set();
+}
+
+function saveDismissedAlerts(set) {
+  try {
+    const arr = Array.from(set);
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(arr));
+  } catch (err) {
+    // ignore
+  }
+}
+
+const dismissedAlerts = loadDismissedAlerts();
+
+function isDismissedAlert(id) {
+  return dismissedAlerts.has(id);
+}
+
+function dismissAlert(id) {
+  dismissedAlerts.add(id);
+  saveDismissedAlerts(dismissedAlerts);
+}
+
 function alertCardClass(alert) {
   const status = String(alert.status || "").toLowerCase();
   if (status === "resolved") return "resolved";
@@ -62,7 +95,6 @@ function countAlertsByFilter(alerts) {
     critical: alerts.filter((a) => matchesFilter(a, "critical")).length,
     warning: alerts.filter((a) => matchesFilter(a, "warning")).length,
     info: alerts.filter((a) => matchesFilter(a, "info")).length,
-    resolved: alerts.filter((a) => matchesFilter(a, "resolved")).length,
   };
 }
 
@@ -75,12 +107,10 @@ function updateAlertsHeroStats(alerts) {
 
   setText("alertsStatTotal", counts.all);
   setText("alertsStatCritical", counts.critical);
-  setText("alertsStatResolved", counts.resolved);
   setText("countAll", counts.all);
   setText("countCritical", counts.critical);
   setText("countWarning", counts.warning);
   setText("countInfo", counts.info);
-  setText("countResolved", counts.resolved);
 }
 
 function renderAlertsPage(alerts = alertsPageState.alerts) {
@@ -89,8 +119,10 @@ function renderAlertsPage(alerts = alertsPageState.alerts) {
 
   updateAlertsHeroStats(alerts);
 
-  const visible = alerts.filter((alert) =>
-    matchesFilter(alert, alertsPageState.filter),
+  const visible = alerts.filter(
+    (alert) =>
+      !isDismissedAlert(alert.id) &&
+      matchesFilter(alert, alertsPageState.filter),
   );
 
   if (!visible.length) {
@@ -122,8 +154,7 @@ function renderAlertsPage(alerts = alertsPageState.alerts) {
         ? ""
         : `
           <div class="alert-actions">
-            <button type="button" class="act-btn acknowledge" data-alert-action="acknowledge" data-alert-id="${alert.id}">Acknowledge</button>
-            <button type="button" class="act-btn resolve" data-alert-action="resolve" data-alert-id="${alert.id}">Resolve</button>
+            <button type="button" class="act-btn clear" data-alert-action="clear" data-alert-id="${alert.id}">Clear</button>
           </div>
         `;
 
@@ -162,10 +193,18 @@ function renderAlertsPage(alerts = alertsPageState.alerts) {
 }
 
 function prependAlertsPageAlert(alert) {
+  if (isDismissedAlert(alert.id)) return;
   alertsPageState.alerts = [
     alert,
     ...alertsPageState.alerts.filter((item) => item.id !== alert.id),
   ];
+  renderAlertsPage(alertsPageState.alerts);
+}
+
+function removeAlertFromState(alertId) {
+  alertsPageState.alerts = alertsPageState.alerts.filter(
+    (a) => a.id !== alertId,
+  );
   renderAlertsPage(alertsPageState.alerts);
 }
 
@@ -199,7 +238,22 @@ function bindAlertsPageEvents() {
 
     const alertId = alertButton.dataset.alertId;
     const action = alertButton.dataset.alertAction;
-    const endpoint = action === "acknowledge" ? "acknowledge" : "resolve";
+    const endpoint =
+      action === "clear"
+        ? "clear"
+        : action === "acknowledge"
+          ? "acknowledge"
+          : "resolve";
+
+    // For 'clear' we only remove the alert from the UI (client-side dismiss)
+    // and persist the dismissal in localStorage so socket pushes or refreshes
+    // won't re-add it. Do NOT call the backend endpoint (it isn't supported).
+    if (endpoint === "clear") {
+      dismissAlert(alertId);
+      removeAlertFromState(alertId);
+      window.CaregiverAPI.showToast("Alert cleared", "info");
+      return;
+    }
 
     const result = await window.CaregiverAPI.apiJson(
       `/api/alerts/${alertId}/${endpoint}`,
@@ -207,10 +261,9 @@ function bindAlertsPageEvents() {
     );
 
     if (result) {
-      window.CaregiverAPI.showToast(
-        `Alert ${endpoint}d`,
-        endpoint === "resolve" ? "success" : "warning",
-      );
+      const verb = endpoint === "resolve" ? "resolved" : "acknowledged";
+      const toastType = endpoint === "resolve" ? "success" : "warning";
+      window.CaregiverAPI.showToast(`Alert ${verb}`, toastType);
       await refreshAlertsPage();
     }
   });

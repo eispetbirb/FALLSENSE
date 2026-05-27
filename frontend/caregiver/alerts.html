@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -20,7 +20,10 @@
           class="brand-logo"
           src="assets/logo.png"
           alt="FallSense – Elderly Monitor"
-          onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+          onerror="
+            this.style.display = 'none';
+            this.nextElementSibling.style.display = 'block';
+          "
         />
         <span class="brand-text" style="display: none">FallSense</span>
       </a>
@@ -106,12 +109,14 @@
               Reports
             </a>
           </li>
-          <li><a href="medicine.html">
-            <svg viewBox="0 0 24 24">
-              <path d="M19 9h-2V7a7 7 0 10-14 0v2H1v13h18V9z"/>
-              <line x1="10" y1="13" x2="10" y2="17"/>
-              <line x1="8" y1="15" x2="12" y2="15"/>
-            </svg>Medications</a>
+          <li>
+            <a href="medicine.html">
+              <svg viewBox="0 0 24 24">
+                <path d="M19 9h-2V7a7 7 0 10-14 0v2H1v13h18V9z" />
+                <line x1="10" y1="13" x2="10" y2="17" />
+                <line x1="8" y1="15" x2="12" y2="15" /></svg
+              >Medications</a
+            >
           </li>
         </ul>
 
@@ -137,8 +142,8 @@
             <div class="eyebrow"><span></span> Live feed</div>
             <h1>Alert Management</h1>
             <p>
-              Review fall, SOS, security, and inactivity alerts as they arrive in
-              real time.
+              Review fall, SOS, security, and inactivity alerts as they arrive
+              in real time.
             </p>
           </div>
           <div class="hero-stat-row">
@@ -152,23 +157,14 @@
               </div>
               <div class="hero-stat-label">Critical</div>
             </div>
-            <div class="hero-stat">
-              <div class="hero-stat-number is-resolved" id="alertsStatResolved">
-                0
-              </div>
-              <div class="hero-stat-label">Resolved</div>
-            </div>
+            <!-- Resolved stat removed per UI update -->
           </div>
         </div>
       </div>
 
       <div class="filter-bar">
         <div class="filter-tabs" id="alertsFilterTabs">
-          <button
-            type="button"
-            class="filter-tab active"
-            data-filter="all"
-          >
+          <button type="button" class="filter-tab active" data-filter="all">
             All <span class="tab-count" id="countAll">0</span>
           </button>
           <button type="button" class="filter-tab" data-filter="critical">
@@ -180,9 +176,7 @@
           <button type="button" class="filter-tab" data-filter="info">
             Info <span class="tab-count" id="countInfo">0</span>
           </button>
-          <button type="button" class="filter-tab" data-filter="resolved">
-            Resolved <span class="tab-count" id="countResolved">0</span>
-          </button>
+          <!-- Resolved filter removed per UI update -->
         </div>
         <div class="filter-actions">
           <button type="button" class="btn-sm" id="alertsRefreshButton">
