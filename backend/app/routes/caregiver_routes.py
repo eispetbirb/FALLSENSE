@@ -131,14 +131,21 @@ def serialize_log_entry(entry, entry_type):
 @caregiver_bp.route("/patients/status", methods=["GET"])
 @role_required(["caregiver"])
 def get_patient_statuses():
-    statuses = PatientStatus.query.order_by(PatientStatus.updated_at.desc()).all()
+    caregiver_id = get_jwt_identity()
+    statuses = (
+        PatientStatus.query
+        .filter_by(caregiver_id=caregiver_id)
+        .order_by(PatientStatus.updated_at.desc())
+        .all()
+    )
     return jsonify([serialize_patient_status(status) for status in statuses])
 
 
 @caregiver_bp.route("/patients", methods=["POST"])
 @role_required(["caregiver"])
 def create_patient():
-    current_count = PatientStatus.query.count()
+    caregiver_id = get_jwt_identity()
+    current_count = PatientStatus.query.filter_by(caregiver_id=caregiver_id).count()
     if current_count >= 3:
         return jsonify({"message": "Patient limit reached. Caregiver can only manage up to 3 patients."}), 400
 
@@ -154,6 +161,7 @@ def create_patient():
             patient_id=f"patient-{str(uuid.uuid4())[:8]}",
             patient_name=patient_name,
             room_label=room_label or "Unassigned room",
+            caregiver_id=caregiver_id,
             online=False,
             fall_detected=False,
             emergency_status=False,
@@ -183,9 +191,10 @@ def create_patient():
 @caregiver_bp.route("/patients/<patient_id>", methods=["PUT"])
 @role_required(["caregiver"])
 def update_patient(patient_id):
-    patient = PatientStatus.query.filter_by(patient_id=patient_id).first()
+    caregiver_id = get_jwt_identity()
+    patient = PatientStatus.query.filter_by(patient_id=patient_id, caregiver_id=caregiver_id).first()
     if not patient:
-        return jsonify({"message": "Patient not found"}), 404
+        return jsonify({"message": "Patient not found or not owned by you"}), 404
 
     data = request.get_json() or {}
     patient_name = (data.get("patient_name") or "").strip()
@@ -219,9 +228,10 @@ def update_patient(patient_id):
 @caregiver_bp.route("/patients/<patient_id>", methods=["DELETE"])
 @role_required(["caregiver"])
 def delete_patient(patient_id):
-    patient = PatientStatus.query.filter_by(patient_id=patient_id).first()
+    caregiver_id = get_jwt_identity()
+    patient = PatientStatus.query.filter_by(patient_id=patient_id, caregiver_id=caregiver_id).first()
     if not patient:
-        return jsonify({"message": "Patient not found"}), 404
+        return jsonify({"message": "Patient not found or not owned by you"}), 404
 
     try:
         medication_count = MedicationSchedule.query.filter_by(patient_id=patient_id).delete(synchronize_session=False)
@@ -532,9 +542,10 @@ def configure_camera_stream():
     if not patient_id:
         return jsonify({"message": "patient_id is required"}), 400
 
-    patient = PatientStatus.query.filter_by(patient_id=patient_id).first()
+    caregiver_id = get_jwt_identity()
+    patient = PatientStatus.query.filter_by(patient_id=patient_id, caregiver_id=caregiver_id).first()
     if not patient:
-        return jsonify({"message": "Patient not found"}), 404
+        return jsonify({"message": "Patient not found or not owned by you"}), 404
 
     patient.stream_url = stream_url if stream_url else None
     if stream_url:
@@ -589,7 +600,8 @@ def stream_start():
 
     # Persist stream URL on the patient record (same as configure_camera_stream)
     if patient_id:
-        patient = PatientStatus.query.filter_by(patient_id=patient_id).first()
+        caregiver_id = get_jwt_identity()
+        patient = PatientStatus.query.filter_by(patient_id=patient_id, caregiver_id=caregiver_id).first()
         if patient:
             patient.stream_url = ip
             patient.camera_status = "online"

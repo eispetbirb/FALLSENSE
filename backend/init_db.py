@@ -52,19 +52,22 @@ def get_or_create_user(fullname: str, email: str, password: str, role: str) -> U
     return user
 
 
-def get_or_create_patient(user_name: str, patient_id: str, room_label: str, **kwargs) -> PatientStatus:
+def get_or_create_patient(user_name: str, patient_id: str, room_label: str, caregiver_id: str = None, **kwargs) -> PatientStatus:
     patient = PatientStatus.query.filter_by(patient_id=patient_id).first()
     if patient:
         for key, value in kwargs.items():
             setattr(patient, key, value)
         patient.patient_name = user_name
         patient.room_label = room_label
+        if caregiver_id:
+            patient.caregiver_id = caregiver_id
         return patient
 
     patient = PatientStatus(
         patient_id=patient_id,
         patient_name=user_name,
         room_label=room_label,
+        caregiver_id=caregiver_id,
         **kwargs,
     )
     db.session.add(patient)
@@ -147,6 +150,7 @@ def seed_database() -> None:
         user_name="Patient One",
         patient_id=patient_a.id,
         room_label="Room 101",
+        caregiver_id=caregiver.id,
         online=True,
         fall_detected=False,
         emergency_status=False,
@@ -161,6 +165,7 @@ def seed_database() -> None:
         user_name="Patient Two",
         patient_id=patient_b.id,
         room_label="Room 102",
+        caregiver_id=caregiver.id,
         online=True,
         fall_detected=True,
         emergency_status=True,
