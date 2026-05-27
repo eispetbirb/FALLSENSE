@@ -6,6 +6,27 @@ function showAuthMessage(element, message, variant = "error") {
   element.hidden = false;
 }
 
+function formatLoginErrorMessage(message) {
+  const lockMatch = message?.match(/^Account temporarily locked until\s+(.+)$/);
+
+  if (!lockMatch) {
+    return message;
+  }
+
+  const lockUntil = new Date(lockMatch[1]);
+  if (Number.isNaN(lockUntil.getTime())) {
+    return message;
+  }
+
+  const formattedTime = new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Manila",
+  }).format(lockUntil);
+
+  return `Account temporarily locked until ${formattedTime} (Philippine Time)`;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const api = window.CaregiverAPI;
   const loginForm = document.getElementById("caregiverLoginForm");
@@ -120,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       window.location.href = "index.html";
     } catch (error) {
       if (message) {
-        message.textContent = error.message;
+        message.textContent = formatLoginErrorMessage(error.message);
         message.classList.remove("d-none");
       }
     } finally {
