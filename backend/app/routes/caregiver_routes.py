@@ -149,19 +149,23 @@ def create_patient():
     if not patient_name:
         return jsonify({"message": "patient_name is required"}), 400
 
-    patient = PatientStatus(
-        patient_id=f"patient-{str(uuid.uuid4())[:8]}",
-        patient_name=patient_name,
-        room_label=room_label or "Unassigned room",
-        online=False,
-        fall_detected=False,
-        emergency_status=False,
-        activity_state="inactive",
-        camera_status="disconnected",
-        posture_state="unknown",
-    )
-    db.session.add(patient)
-    db.session.commit()
+    try:
+        patient = PatientStatus(
+            patient_id=f"patient-{str(uuid.uuid4())[:8]}",
+            patient_name=patient_name,
+            room_label=room_label or "Unassigned room",
+            online=False,
+            fall_detected=False,
+            emergency_status=False,
+            activity_state="inactive",
+            camera_status="disconnected",
+            posture_state="unknown",
+        )
+        db.session.add(patient)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"message": f"Unable to create patient: {exc}"}), 500
 
     socketio.emit("patient_status_updated", serialize_patient_status(patient), namespace="/")
 
@@ -174,6 +178,83 @@ def create_patient():
     })
 
     return jsonify(serialize_patient_status(patient)), 201
+
+
+@caregiver_bp.route("/patients/<patient_id>", methods=["PUT"])
+@role_required(["caregiver"])
+def update_patient(patient_id):
+    patient = PatientStatus.query.filter_by(patient_id=patient_id).first()
+    if not patient:
+        return jsonify({"message": "Patient not found"}), 404
+
+    data = request.get_json() or {}
+    patient_name = (data.get("patient_name") or "").strip()
+    room_label = (data.get("room_label") or "").strip()
+
+    if not patient_name:
+        return jsonify({"message": "patient_name is required"}), 400
+
+    try:
+        patient.patient_name = patient_name
+        patient.room_label = room_label or "Unassigned room"
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"message": f"Unable to update patient: {exc}"}), 500
+
+    payload = serialize_patient_status(patient)
+    socketio.emit("patient_status_updated", payload, namespace="/")
+
+    emit_activity({
+        "user_id": get_jwt_identity(),
+        "action": "caregiver_update_patient",
+        "status": "success",
+        "patient_id": patient.patient_id,
+        "updated_at": datetime.utcnow().isoformat(),
+    })
+
+    return jsonify(payload)
+
+
+@caregiver_bp.route("/patients/<patient_id>", methods=["DELETE"])
+@role_required(["caregiver"])
+def delete_patient(patient_id):
+    patient = PatientStatus.query.filter_by(patient_id=patient_id).first()
+    if not patient:
+        return jsonify({"message": "Patient not found"}), 404
+
+    try:
+        medication_count = MedicationSchedule.query.filter_by(patient_id=patient_id).delete(synchronize_session=False)
+        camera_count = CameraStatus.query.filter_by(patient_id=patient_id).delete(synchronize_session=False)
+        incident_count = IncidentReport.query.filter_by(patient_id=patient_id).delete(synchronize_session=False)
+
+        db.session.delete(patient)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"message": f"Unable to remove patient: {exc}"}), 500
+
+    socketio.emit(
+        "patient_status_updated",
+        {"patient_id": patient_id, "id": patient.id, "deleted": True},
+        namespace="/",
+    )
+
+    emit_activity({
+        "user_id": get_jwt_identity(),
+        "action": "caregiver_delete_patient",
+        "status": "success",
+        "patient_id": patient_id,
+        "medications_removed": medication_count,
+        "camera_records_removed": camera_count,
+        "incident_reports_removed": incident_count,
+        "deleted_at": datetime.utcnow().isoformat(),
+    })
+
+    return jsonify({
+        "message": "Patient removed successfully",
+        "patient_id": patient_id,
+    })
 
 
 @caregiver_bp.route("/alerts", methods=["GET"])
