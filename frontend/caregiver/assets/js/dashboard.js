@@ -3,6 +3,7 @@ const caregiverState = {
   alerts: [],
   medications: [],
   camera: null,
+  fallIncidents: [],
 };
 
 let pendingQuickAction = null;
@@ -164,6 +165,37 @@ function updateAddPatientButtons() {
   });
 }
 
+function isFallIncident(incident) {
+  const incidentType = String(
+    incident?.incident_type || incident?.label || "",
+  ).toLowerCase();
+  return (
+    incidentType.includes("fall") ||
+    incidentType === "falling" ||
+    incidentType === "fall_detected"
+  );
+}
+
+function filterFallIncidentsForPatients(incidents, patients) {
+  const patientIds = new Set(
+    (patients || []).map((patient) => patient.patient_id).filter(Boolean),
+  );
+  const fallIncidents = (incidents || []).filter(isFallIncident);
+  if (!patientIds.size) return fallIncidents;
+  return fallIncidents.filter((incident) => patientIds.has(incident.patient_id));
+}
+
+async function refreshFallIncidentStats() {
+  const payload = await window.CaregiverAPI.apiJson("/api/reports/incidents");
+  if (!payload) return;
+
+  caregiverState.fallIncidents = filterFallIncidentsForPatients(
+    payload.items || [],
+    caregiverState.patients,
+  );
+  updateDashboardStats();
+}
+
 function updateDashboardStats() {
   const patients = caregiverState.patients;
   const alerts = caregiverState.alerts;
@@ -178,7 +210,9 @@ function updateDashboardStats() {
   const takenMeds = medications.filter(
     (med) => String(med.status || "").toLowerCase() === "taken",
   );
-  const falls = patients.filter((patient) => patient.fall_detected).length;
+  const fallIncidents = caregiverState.fallIncidents || [];
+  const falls = fallIncidents.length;
+  const openFalls = fallIncidents.filter((incident) => !incident.resolved).length;
 
   const setText = (id, value) => {
     const element = document.getElementById(id);
@@ -205,7 +239,7 @@ function updateDashboardStats() {
     "statMedsTrend",
     medications.length ? `${takenMeds.length} given` : "No schedules",
   );
-  setText("statFallsTrend", falls ? "Needs review" : "Clear");
+  setText("statFallsTrend", falls ? (openFalls ? `${openFalls} open` : "All reviewed") : "No records");
 }
 
 function renderPatientStatuses(patients = []) {
@@ -585,6 +619,7 @@ async function refreshDashboard() {
   if (alerts) renderAlerts(alerts);
   if (medications) renderMedications(medications);
   if (camera) renderCameraStatus(camera);
+  await refreshFallIncidentStats();
 }
 
 async function performQuickAction(action) {
@@ -755,6 +790,7 @@ window.renderMedications = renderMedications;
 window.renderCameraStatus = renderCameraStatus;
 window.refreshDashboard = refreshDashboard;
 window.refreshMedications = refreshMedications;
+window.refreshFallIncidentStats = refreshFallIncidentStats;
 
 window.addEventListener("DOMContentLoaded", async () => {
   if (!window.CaregiverAPI.requireCaregiverSession()) return;

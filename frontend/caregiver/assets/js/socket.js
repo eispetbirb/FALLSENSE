@@ -64,6 +64,7 @@ function initCaregiverSocket() {
 
   caregiverSocket.on("incident_updated", () => {
     window.refreshIncidents?.();
+    window.refreshFallIncidentStats?.();
   });
 
   // ── AI Detection Events ────────────────────────────────────────────────────
